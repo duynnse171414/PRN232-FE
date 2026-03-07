@@ -34,3 +34,8 @@ export interface BuildConfig {
   case?: Product;
   cooler?: Product;
 }
+
+export interface AddressOption {
+  id: number;
+  label: string;
+}
