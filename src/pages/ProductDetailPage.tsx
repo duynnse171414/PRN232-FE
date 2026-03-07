@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Badge } from '../components/ui/badge';
 import { Star, ShoppingCart, Minus, Plus, Package, Truck, Shield, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { Product } from '../types';
 import { productService } from '../services/productService';

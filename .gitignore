@@ -1,17 +1,27 @@
 # Dependencies
 node_modules/
+.pnp/
+.pnp.js
+
+# Vite / bundler cache
+.vite/
+node_modules/.vite/
+*.tsbuildinfo
 
 # Build output
 dist/
 build/
 coverage/
+.out/
 
 # Logs
 *.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
 # Env files
 .env
@@ -21,11 +31,31 @@ pnpm-debug.log*
 # IDE / OS
 .vscode/
 .idea/
+*.iml
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# TypeScript
-*.tsbuildinfo
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Cache folders
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
 
 # .NET / backend artifacts (in case backend folders are inside repo)
 **/bin/

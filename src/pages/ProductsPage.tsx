@@ -16,7 +16,7 @@ export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState([0, 20000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000000]);
   const [sortBy, setSortBy] = useState('popular');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,7 @@ export function ProductsPage() {
   const clearFilters = () => {
     setSelectedCategory('all');
     setSelectedBrands([]);
-    setPriceRange([0, 20000]);
+    setPriceRange([0, 50000000]);
     setSortBy('popular');
     searchParams.delete('category');
     setSearchParams(searchParams);
@@ -116,9 +116,15 @@ export function ProductsPage() {
       <div>
         <h3 className="font-semibold mb-3">Price Range</h3>
         <div className="space-y-4">
-          <Slider min={0} max={20000} step={100} value={priceRange} onValueChange={setPriceRange} />
+          <Slider
+            min={0}
+            max={50000000}
+            step={100000}
+            value={priceRange}
+            onValueChange={(value: number[]) => setPriceRange([value[0] ?? 0, value[1] ?? 50000000])}
+          />
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>${priceRange[0]}</span><span>${priceRange[1]}</span>
+            <span>${priceRange[0].toLocaleString()}</span><span>${priceRange[1].toLocaleString()}</span>
           </div>
         </div>
       </div>
