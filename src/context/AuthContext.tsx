@@ -1,51 +1,79 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '../types';
+import { authService } from '../services/authService';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, phone: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const STORAGE_USER_KEY = 'auth_user';
+const STORAGE_TOKEN_KEY = 'auth_token';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login - in a real app, this would call an API
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    if (email && password) {
-      setUser({
-        id: '1',
-        name: email.split('@')[0],
-        email: email,
-      });
-      return true;
+  useEffect(() => {
+    const raw = localStorage.getItem(STORAGE_USER_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as User;
+      setUser(parsed);
+    } catch {
+      localStorage.removeItem(STORAGE_USER_KEY);
     }
-    return false;
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    const result = await authService.login({ email, password });
+
+    if (!result?.user) return false;
+
+    const mappedUser: User = {
+      id: String(result.user.id),
+      name: result.user.name,
+      email: result.user.email,
+    };
+
+    setUser(mappedUser);
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(mappedUser));
+    if (result.token) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, result.token);
+    }
+
+    return true;
   };
 
-  const signup = async (name: string, email: string, password: string): Promise<boolean> => {
-    // Mock signup - in a real app, this would call an API
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    if (name && email && password) {
-      setUser({
-        id: '1',
-        name: name,
-        email: email,
-      });
-      return true;
+  const signup = async (name: string, email: string, phone: string, password: string): Promise<boolean> => {
+    const result = await authService.register({ name, email, phone, password });
+
+    if (!result?.user) return false;
+
+    const mappedUser: User = {
+      id: String(result.user.id),
+      name: result.user.name,
+      email: result.user.email,
+    };
+
+    setUser(mappedUser);
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(mappedUser));
+    if (result.token) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, result.token);
     }
-    return false;
+
+    return true;
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem(STORAGE_USER_KEY);
+    localStorage.removeItem(STORAGE_TOKEN_KEY);
   };
 
   return (

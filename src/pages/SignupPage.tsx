@@ -11,6 +11,7 @@ import { toast } from 'sonner@2.0.3';
 export function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !phone || !password || !confirmPassword) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -37,7 +38,7 @@ export function SignupPage() {
 
     setLoading(true);
     try {
-      const success = await signup(name, email, password);
+      const success = await signup(name, email, phone, password);
       if (success) {
         toast.success('Account created successfully!');
         navigate('/');
@@ -92,6 +93,18 @@ export function SignupPage() {
                   placeholder="john@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="0901234567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                 />
               </div>
