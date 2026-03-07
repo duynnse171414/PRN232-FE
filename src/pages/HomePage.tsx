@@ -15,12 +15,24 @@ export function HomePage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [productList, categoryList] = await Promise.all([
+        const [productResult, categoryResult] = await Promise.allSettled([
           productService.getProducts({ page: 1, pageSize: 20 }),
           productService.getCategories(),
         ]);
-        setProducts(productList);
-        setCategories(categoryList);
+
+        if (productResult.status === 'fulfilled') {
+          setProducts(productResult.value || []);
+        } else {
+          console.error('Failed to load homepage products', productResult.reason);
+          setProducts([]);
+        }
+
+        if (categoryResult.status === 'fulfilled') {
+          setCategories(categoryResult.value || []);
+        } else {
+          console.error('Failed to load homepage categories', categoryResult.reason);
+          setCategories([]);
+        }
       } catch (error) {
         console.error('Failed to load homepage data', error);
       }
@@ -29,10 +41,11 @@ export function HomePage() {
     loadData();
   }, []);
 
-  const featuredProducts = useMemo(
-    () => products.filter((p) => p.originalPrice).slice(0, 4),
-    [products]
-  );
+  const featuredProducts = useMemo(() => {
+    const discounted = products.filter((p) => p.originalPrice && p.originalPrice > p.price);
+    if (discounted.length > 0) return discounted.slice(0, 4);
+    return products.slice(0, 4);
+  }, [products]);
 
   const popularProducts = useMemo(
     () => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 4),

@@ -26,7 +26,7 @@ export interface BuildPcComponentTypeDto {
 }
 
 export interface CreateBuildDto {
-  userId?: number;
+  userId?: number | null;
   name: string;
   items: Array<{
     componentTypeId: number;

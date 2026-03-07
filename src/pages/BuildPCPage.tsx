@@ -1,87 +1,93 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BuildConfig, Product } from '../types';
+import { Product } from '../types';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { Cpu, Monitor, HardDrive, Activity, Zap, ShoppingCart, Check, AlertCircle, Save } from 'lucide-react';
+import {
+  Cpu,
+  Monitor,
+  HardDrive,
+  Activity,
+  Zap,
+  ShoppingCart,
+  Check,
+  AlertCircle,
+  Save,
+} from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-import { buildPcService, BuildPcComponentTypeDto } from '../services/buildPcService';
+import {
+  buildPcService,
+  BuildPcComponentTypeDto,
+  BuildPcProductDto,
+  BuildResponseDto,
+} from '../services/buildPcService';
 
-type ComponentType = 'cpu' | 'gpu' | 'motherboard' | 'ram' | 'storage';
+type SelectedMap = Record<number, { productId: number; quantity: number }>;
 
-const componentCategories: { type: ComponentType; label: string; icon: any }[] = [
-  { type: 'cpu', label: 'Processor (CPU)', icon: Cpu },
-  { type: 'gpu', label: 'Graphics Card (GPU)', icon: Monitor },
-  { type: 'motherboard', label: 'Motherboard', icon: Activity },
-  { type: 'ram', label: 'Memory (RAM)', icon: Zap },
-  { type: 'storage', label: 'Storage', icon: HardDrive },
+const iconByName: Array<{ keyword: string; icon: any }> = [
+  { keyword: 'cpu', icon: Cpu },
+  { keyword: 'processor', icon: Cpu },
+  { keyword: 'gpu', icon: Monitor },
+  { keyword: 'graphics', icon: Monitor },
+  { keyword: 'vga', icon: Monitor },
+  { keyword: 'motherboard', icon: Activity },
+  { keyword: 'mainboard', icon: Activity },
+  { keyword: 'ram', icon: Zap },
+  { keyword: 'memory', icon: Zap },
+  { keyword: 'storage', icon: HardDrive },
+  { keyword: 'ssd', icon: HardDrive },
+  { keyword: 'hdd', icon: HardDrive },
 ];
 
-function normalizeName(name?: string) {
-  return (name || '').toLowerCase();
+function getIconForComponent(name: string) {
+  const lower = (name || '').toLowerCase();
+  const matched = iconByName.find((x) => lower.includes(x.keyword));
+  return matched?.icon || Cpu;
 }
 
-function mapNameToType(name?: string): ComponentType | null {
-  const x = normalizeName(name);
-  if (x.includes('cpu') || x.includes('processor')) return 'cpu';
-  if (x.includes('gpu') || x.includes('graphics') || x.includes('vga')) return 'gpu';
-  if (x.includes('mainboard') || x.includes('motherboard')) return 'motherboard';
-  if (x.includes('ram') || x.includes('memory')) return 'ram';
-  if (x.includes('storage') || x.includes('ssd') || x.includes('hdd')) return 'storage';
-  return null;
-}
-
-function mapBackendProduct(item: any): Product {
+function mapBuildProductToProduct(item: BuildPcProductDto): Product {
   return {
     id: String(item.id),
     name: item.name || 'Unnamed product',
-    category: item.categoryName || 'Other',
-    price: item.price ?? 0,
+    category: 'PC Component',
+    price: Number(item.price ?? 0),
     image: item.imageUrls?.[0] || '',
-    description: item.description || '',
+    description: '',
     specifications: {},
-    stock: item.stock ?? 0,
+    stock: Number(item.stock ?? 0),
     rating: 4.5,
     reviews: 0,
-    brand: item.brandName || '',
+    brand: '',
   };
 }
 
 export function BuildPCPage() {
-  const [build, setBuild] = useState<BuildConfig>({});
-  const [selectedType, setSelectedType] = useState<ComponentType | null>(null);
+  const [componentTypes, setComponentTypes] = useState<BuildPcComponentTypeDto[]>([]);
+  const [selectedMap, setSelectedMap] = useState<SelectedMap>({});
+  const [selectedComponentType, setSelectedComponentType] = useState<BuildPcComponentTypeDto | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [componentsFromApi, setComponentsFromApi] = useState<BuildPcComponentTypeDto[]>([]);
   const [loadingComponents, setLoadingComponents] = useState(false);
   const [savingBuild, setSavingBuild] = useState(false);
-  const [myBuilds, setMyBuilds] = useState<Array<{
-    id: number;
-    name: string;
-    totalPrice: number;
-    createdAt: string;
-    items: Array<{
-      componentTypeName: string;
-      productName: string;
-      quantity: number;
-    }>;
-  }>>([]);
+  const [myBuilds, setMyBuilds] = useState<BuildResponseDto[]>([]);
   const [loadingMyBuilds, setLoadingMyBuilds] = useState(false);
+
   const { addToCart } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const load = async () => {
       setLoadingComponents(true);
       try {
         const list = await buildPcService.getComponents();
-        setComponentsFromApi(list || []);
+        const sorted = [...(list || [])].sort((a, b) => a.sortOrder - b.sortOrder);
+        setComponentTypes(sorted);
       } catch (error: any) {
         toast.error(error?.message || 'Failed to load Build PC components');
-        setComponentsFromApi([]);
+        setComponentTypes([]);
       } finally {
         setLoadingComponents(false);
       }
@@ -111,106 +117,124 @@ export function BuildPCPage() {
     loadMyBuilds();
   }, [isAuthenticated]);
 
-  const componentTypeIdByUiType = useMemo(() => {
-    const map: Partial<Record<ComponentType, number>> = {};
-    for (const ct of componentsFromApi) {
-      const uiType = mapNameToType(ct.name);
-      if (uiType) {
-        map[uiType] = ct.id;
+  const productLookup = useMemo(() => {
+    const map = new Map<number, BuildPcProductDto>();
+    for (const ct of componentTypes) {
+      for (const p of ct.products || []) {
+        map.set(p.id, p);
       }
     }
     return map;
-  }, [componentsFromApi]);
+  }, [componentTypes]);
 
-  const productsByUiType = useMemo(() => {
-    const map: Partial<Record<ComponentType, Product[]>> = {};
-    for (const ct of componentsFromApi) {
-      const uiType = mapNameToType(ct.name);
-      if (!uiType) continue;
-      map[uiType] = (ct.products || []).map(mapBackendProduct);
+  const selectedProductByType = useMemo(() => {
+    const map = new Map<number, BuildPcProductDto>();
+    for (const ct of componentTypes) {
+      const selected = selectedMap[ct.id];
+      if (!selected) continue;
+      const found = (ct.products || []).find((p) => p.id === selected.productId);
+      if (found) map.set(ct.id, found);
     }
     return map;
-  }, [componentsFromApi]);
+  }, [componentTypes, selectedMap]);
 
-  const handleSelectComponent = (type: ComponentType) => {
-    setSelectedType(type);
+  const selectedCount = Object.keys(selectedMap).length;
+  const requiredCount = componentTypes.filter((x) => x.isRequired).length;
+
+  const totalPrice = useMemo(() => {
+    let sum = 0;
+    for (const selected of Object.values(selectedMap)) {
+      const product = productLookup.get(selected.productId);
+      if (!product) continue;
+      sum += Number(product.price ?? 0) * Number(selected.quantity ?? 1);
+    }
+    return sum;
+  }, [selectedMap, productLookup]);
+
+  const missingRequired = useMemo(
+    () =>
+      componentTypes
+        .filter((ct) => ct.isRequired && !selectedMap[ct.id])
+        .map((ct) => ct.name),
+    [componentTypes, selectedMap]
+  );
+
+  const openSelectDialog = (ct: BuildPcComponentTypeDto) => {
+    setSelectedComponentType(ct);
     setDialogOpen(true);
   };
 
-  const handleComponentChoice = (product: Product) => {
-    setBuild((prev) => ({ ...prev, [selectedType as ComponentType]: product }));
+  const handleChooseProduct = (componentTypeId: number, productId: number) => {
+    setSelectedMap((prev) => ({
+      ...prev,
+      [componentTypeId]: { productId, quantity: 1 },
+    }));
     setDialogOpen(false);
-    toast.success(`${product.name} added to build`);
+
+    const p = productLookup.get(productId);
+    if (p) toast.success(`${p.name} added to build`);
   };
 
-  const handleRemoveComponent = (type: ComponentType) => {
-    setBuild((prev) => {
-      const newBuild = { ...prev };
-      delete newBuild[type];
-      return newBuild;
+  const handleRemoveComponent = (componentTypeId: number) => {
+    setSelectedMap((prev) => {
+      const next = { ...prev };
+      delete next[componentTypeId];
+      return next;
     });
     toast.success('Component removed from build');
   };
 
   const handleAddToCart = async () => {
-    const components = Object.values(build);
-    if (components.length === 0) {
+    const selectedEntries = Object.values(selectedMap);
+    if (selectedEntries.length === 0) {
       toast.error('Please add components to your build');
       return;
     }
 
-    for (const component of components) {
-      await addToCart(component as Product);
+    for (const item of selectedEntries) {
+      const p = productLookup.get(item.productId);
+      if (!p) continue;
+      await addToCart(mapBuildProductToProduct(p), item.quantity);
     }
 
-    toast.success(`All ${components.length} components added to cart!`);
+    toast.success(`All ${selectedEntries.length} components added to cart!`);
   };
 
   const handleSaveBuild = async () => {
-    const entries = Object.entries(build) as [ComponentType, Product | undefined][];
-    const selected = entries.filter(([, p]) => !!p) as [ComponentType, Product][];
+    const items = Object.entries(selectedMap).map(([componentTypeId, v]) => ({
+      componentTypeId: Number(componentTypeId),
+      productId: v.productId,
+      quantity: v.quantity,
+    }));
 
-    if (selected.length === 0) {
+    if (items.length === 0) {
       toast.error('Please choose at least one component before saving');
       return;
     }
 
-    if (!isAuthenticated) {
-      toast.error('Please login to save your build');
+    if (missingRequired.length > 0) {
+      toast.error(`Missing required components: ${missingRequired.join(', ')}`);
       return;
     }
 
     setSavingBuild(true);
     try {
       const payload = {
-        userId: Number(user?.id),
+        userId: null,
         name: `Build ${new Date().toLocaleString()}`,
-        items: selected
-          .map(([type, product]) => {
-            const componentTypeId = componentTypeIdByUiType[type];
-            if (!componentTypeId) return null;
-            return {
-              componentTypeId,
-              productId: Number(product.id),
-              quantity: 1,
-            };
-          })
-          .filter((x): x is { componentTypeId: number; productId: number; quantity: number } => !!x),
+        items,
       };
-
-      if (payload.items.length === 0) {
-        toast.error('No mapped component type found from backend. Please check BuildPC components config.');
-        return;
-      }
 
       const saved = await buildPcService.createBuild(payload);
       toast.success(`Build saved successfully (#${saved.id})`);
 
-      try {
-        const list = await buildPcService.getMyBuilds();
-        setMyBuilds(list || []);
-      } catch {
-        // ignore refresh failure
+      if (isAuthenticated) {
+        try {
+          const list = await buildPcService.getMyBuilds();
+          setMyBuilds(list || []);
+        } catch {
+          // ignore reload failure
+        }
       }
     } catch (error: any) {
       toast.error(error?.message || 'Failed to save build');
@@ -218,13 +242,6 @@ export function BuildPCPage() {
       setSavingBuild(false);
     }
   };
-
-  const totalPrice = Object.values(build).reduce((sum, component) => sum + (component?.price || 0), 0);
-  const completedComponents = Object.keys(build).length;
-  const requiredComponents = 5;
-
-  const availableProducts = selectedType ? productsByUiType[selectedType] || [] : [];
-  const warnings: string[] = [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -237,24 +254,33 @@ export function BuildPCPage() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            {componentCategories.map(({ type, label, icon: Icon }) => {
-              const component = build[type];
+            {componentTypes.map((ct) => {
+              const Icon = getIconForComponent(ct.name);
+              const selected = selectedProductByType.get(ct.id);
+
               return (
-                <Card key={type}>
+                <Card key={ct.id}>
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
                       <div className="size-12 bg-blue-100 rounded-lg flex items-center justify-center">
                         <Icon className="size-6 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold mb-1">{label}</h3>
-                        {component ? (
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold">{ct.name}</h3>
+                          {ct.isRequired && <Badge variant="outline">Required</Badge>}
+                        </div>
+
+                        {selected ? (
                           <div className="flex items-start gap-4">
-                            <ImageWithFallback src={component.image} alt={component.name} className="size-16 object-cover rounded" />
+                            <ImageWithFallback
+                              src={selected.imageUrls?.[0] || ''}
+                              alt={selected.name}
+                              className="size-16 object-cover rounded"
+                            />
                             <div className="flex-1">
-                              <p className="font-medium">{component.name}</p>
-                              <p className="text-sm text-gray-600">{component.brand}</p>
-                              <p className="font-bold text-blue-600 mt-1">${component.price.toFixed(2)}</p>
+                              <p className="font-medium">{selected.name}</p>
+                              <p className="font-bold text-blue-600 mt-1">${Number(selected.price ?? 0).toFixed(2)}</p>
                             </div>
                           </div>
                         ) : (
@@ -262,13 +288,13 @@ export function BuildPCPage() {
                         )}
                       </div>
                       <div className="flex-shrink-0 flex gap-2">
-                        {component && (
-                          <Button variant="outline" size="sm" onClick={() => handleRemoveComponent(type)}>
+                        {selected && (
+                          <Button variant="outline" size="sm" onClick={() => handleRemoveComponent(ct.id)}>
                             Remove
                           </Button>
                         )}
-                        <Button size="sm" onClick={() => handleSelectComponent(type)}>
-                          {component ? 'Change' : 'Select'}
+                        <Button size="sm" onClick={() => openSelectDialog(ct)}>
+                          {selected ? 'Change' : 'Select'}
                         </Button>
                       </div>
                     </div>
@@ -277,16 +303,16 @@ export function BuildPCPage() {
               );
             })}
 
-            {warnings.length > 0 && (
+            {missingRequired.length > 0 && (
               <Card className="border-orange-300 bg-orange-50">
                 <CardContent className="p-6">
                   <div className="flex gap-3">
                     <AlertCircle className="size-5 text-orange-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-orange-900 mb-2">Compatibility Warnings</h3>
+                      <h3 className="font-semibold text-orange-900 mb-2">Missing Required Components</h3>
                       <ul className="space-y-1 text-sm text-orange-800">
-                        {warnings.map((warning, index) => (
-                          <li key={index}>• {warning}</li>
+                        {missingRequired.map((name) => (
+                          <li key={name}>• {name}</li>
                         ))}
                       </ul>
                     </div>
@@ -305,24 +331,40 @@ export function BuildPCPage() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-600">Progress</span>
-                    <span className="font-semibold">{completedComponents}/{requiredComponents}</span>
+                    <span className="font-semibold">
+                      {selectedCount}/{requiredCount || componentTypes.length}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(completedComponents / requiredComponents) * 100}%` }} />
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{
+                        width: `${
+                          ((selectedCount / Math.max(requiredCount || componentTypes.length, 1)) * 100).toFixed(0)
+                        }%`,
+                      }}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm">Components</h4>
-                  {componentCategories.map(({ type, label, icon: Icon }) => (
-                    <div key={type} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <Icon className="size-4 text-gray-400" />
-                        <span className="text-gray-600">{label}</span>
+                  {componentTypes.map((ct) => {
+                    const Icon = getIconForComponent(ct.name);
+                    return (
+                      <div key={ct.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Icon className="size-4 text-gray-400" />
+                          <span className="text-gray-600">{ct.name}</span>
+                        </div>
+                        {selectedMap[ct.id] ? (
+                          <Check className="size-4 text-green-600" />
+                        ) : (
+                          <span className="text-xs text-gray-400">Not selected</span>
+                        )}
                       </div>
-                      {build[type] ? <Check className="size-4 text-green-600" /> : <span className="text-xs text-gray-400">Not selected</span>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="pt-4 border-t">
@@ -331,11 +373,17 @@ export function BuildPCPage() {
                     <span className="text-2xl font-bold text-blue-600">${totalPrice.toFixed(2)}</span>
                   </div>
                   <div className="space-y-2">
-                    <Button className="w-full" size="lg" onClick={handleAddToCart} disabled={completedComponents === 0}>
+                    <Button className="w-full" size="lg" onClick={handleAddToCart} disabled={selectedCount === 0}>
                       <ShoppingCart className="size-5 mr-2" />Add All to Cart
                     </Button>
-                    <Button className="w-full" variant="outline" onClick={handleSaveBuild} disabled={completedComponents === 0 || savingBuild}>
-                      <Save className="size-4 mr-2" />{savingBuild ? 'Saving...' : 'Save Build'}
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={handleSaveBuild}
+                      disabled={selectedCount === 0 || savingBuild}
+                    >
+                      <Save className="size-4 mr-2" />
+                      {savingBuild ? 'Saving...' : 'Save Build'}
                     </Button>
                   </div>
                 </div>
@@ -360,16 +408,20 @@ export function BuildPCPage() {
                     <div key={b.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold">{b.name}</h4>
-                        <span className="text-sm font-semibold text-blue-600">${b.totalPrice.toFixed(2)}</span>
+                        <span className="text-sm font-semibold text-blue-600">${Number(b.totalPrice ?? 0).toFixed(2)}</span>
                       </div>
-                      <p className="text-xs text-gray-500 mb-2">#{b.id} • {new Date(b.createdAt).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        #{b.id} • {new Date(b.createdAt).toLocaleString()}
+                      </p>
                       <div className="text-sm text-gray-700 space-y-1">
                         {b.items.slice(0, 4).map((it, idx) => (
                           <div key={idx}>
                             {it.componentTypeName}: {it.productName} x {it.quantity}
                           </div>
                         ))}
-                        {b.items.length > 4 && <div className="text-xs text-gray-500">+{b.items.length - 4} more items</div>}
+                        {b.items.length > 4 && (
+                          <div className="text-xs text-gray-500">+{b.items.length - 4} more items</div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -382,20 +434,27 @@ export function BuildPCPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Select {componentCategories.find((c) => c.type === selectedType)?.label}</DialogTitle>
+              <DialogTitle>Select {selectedComponentType?.name}</DialogTitle>
             </DialogHeader>
             <div className="grid sm:grid-cols-2 gap-4 mt-4">
-              {availableProducts.map((product) => (
-                <Card key={product.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleComponentChoice(product)}>
+              {(selectedComponentType?.products || []).map((product) => (
+                <Card
+                  key={product.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => selectedComponentType && handleChooseProduct(selectedComponentType.id, product.id)}
+                >
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <ImageWithFallback src={product.image} alt={product.name} className="size-20 object-cover rounded" />
+                      <ImageWithFallback
+                        src={product.imageUrls?.[0] || ''}
+                        alt={product.name}
+                        className="size-20 object-cover rounded"
+                      />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold line-clamp-2 mb-1">{product.name}</h4>
-                        <p className="text-sm text-gray-600 mb-2">{product.brand}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="font-bold text-blue-600">${product.price.toFixed(2)}</p>
-                          {product.stock < 10 && (
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="font-bold text-blue-600">${Number(product.price ?? 0).toFixed(2)}</p>
+                          {Number(product.stock ?? 0) < 10 && (
                             <Badge variant="outline" className="text-xs">
                               {product.stock} left
                             </Badge>
