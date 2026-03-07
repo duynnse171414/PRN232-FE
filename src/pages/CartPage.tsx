@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 export function CartPage() {
