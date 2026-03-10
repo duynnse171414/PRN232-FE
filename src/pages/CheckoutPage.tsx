@@ -231,7 +231,7 @@ export function CheckoutPage() {
                       <div className="co-field">
                         <label className="co-label"><MapPin size={12} /> Saved Address</label>
                         {isAuthenticated && addressOptions.length > 0 ? (
-                          <Select value={formData.addressId} onValueChange={v => handleChange('addressId', v)}>
+                          <Select value={formData.addressId} onValueChange={(v: string) => handleChange('addressId', v)}>
                             <SelectTrigger className="co-input" style={{ height: 42 }}>
                               <SelectValue placeholder="Select address" />
                             </SelectTrigger>
