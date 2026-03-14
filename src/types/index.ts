@@ -39,3 +39,13 @@ export interface AddressOption {
   id: number;
   label: string;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  productCount?: number;
+}
+
+export interface CategoryInput {
+  name: string;
+}
