@@ -4,8 +4,6 @@ import {
   Package,
   ShoppingCart,
   Users,
-  FileText,
-  Settings,
   Menu,
   X,
   LogOut,
@@ -20,8 +18,6 @@ const menuItems = [
   { section: "categories", icon: Tag, label: "Danh mục" },
   { section: "orders", icon: ShoppingCart, label: "Đơn hàng" },
   { section: "customers", icon: Users, label: "Khách hàng" },
-  { section: "blog", icon: FileText, label: "Blog" },
-  { section: "settings", icon: Settings, label: "Cài đặt" },
 ];
 
 type AdminLayoutProps = {
@@ -136,14 +132,14 @@ export default function AdminLayout({
             )}
           </button>
 
-          <div className="flex items-center gap-4">
+          {/* <div className="flex items-center gap-4">
             <div className="text-sm text-muted-foreground">
               {new Date().toLocaleDateString("vi-VN")}
             </div>
             <Button variant="outline" size="sm">
               Trợ giúp
             </Button>
-          </div>
+          </div> */}
         </header>
 
         {/* Content */}

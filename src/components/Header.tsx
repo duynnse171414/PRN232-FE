@@ -1,20 +1,27 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Search, Menu, X, Cpu } from 'lucide-react';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ShoppingCart, User, Search, Menu, X, Cpu } from "lucide-react";
+import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { totalItems } = useCart();
   const { isAuthenticated, logout, user } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role?.toLowerCase() === "admin";
+
+  const handleProfileClick = () => {
+    if (isAdmin) {
+      navigate("/admin");
+    }
+  };
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -29,13 +36,22 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/products" className="text-sm hover:text-blue-600 transition-colors">
+            <Link
+              to="/products"
+              className="text-sm hover:text-blue-600 transition-colors"
+            >
               Products
             </Link>
-            <Link to="/build-pc" className="text-sm hover:text-blue-600 transition-colors">
+            <Link
+              to="/build-pc"
+              className="text-sm hover:text-blue-600 transition-colors"
+            >
               Build PC
             </Link>
-            <Link to="/products?category=Complete%20PC" className="text-sm hover:text-blue-600 transition-colors">
+            <Link
+              to="/products?category=Complete%20PC"
+              className="text-sm hover:text-blue-600 transition-colors"
+            >
               Pre-Built PCs
             </Link>
           </nav>
@@ -56,7 +72,13 @@ export function Header() {
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <div className="hidden md:flex items-center gap-2">
-                <span className="text-sm">Hi, {user?.name}</span>
+                <button
+                  type="button"
+                  className={`text-sm ${isAdmin ? "text-blue-600 hover:underline" : ""}`}
+                  onClick={handleProfileClick}
+                >
+                  Hi, {user?.name}
+                </button>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
@@ -90,7 +112,11 @@ export function Header() {
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+              {mobileMenuOpen ? (
+                <X className="size-5" />
+              ) : (
+                <Menu className="size-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -130,7 +156,13 @@ export function Header() {
               </Link>
               {isAuthenticated ? (
                 <>
-                  <div className="text-sm">Hi, {user?.name}</div>
+                  <button
+                    type="button"
+                    className={`text-sm text-left ${isAdmin ? "text-blue-600 hover:underline" : ""}`}
+                    onClick={handleProfileClick}
+                  >
+                    Hi, {user?.name}
+                  </button>
                   <Button variant="outline" size="sm" onClick={handleLogout}>
                     Logout
                   </Button>

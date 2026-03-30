@@ -30,67 +30,15 @@ import EditCategoryPage from "./categories/[id]/page";
 import CreateCategoryPage from "./categories/create/page";
 import OrdersPage from "./orders/page";
 import CustomersPage from "./customers/page";
-import BlogPage from "./blog/page";
-import SettingsPage from "./settings/page";
 import EditProductPage from "./products/[id]/page";
 import CreateProductPage from "./products/create/page";
-
-const revenueData = [
-  { month: "T1", revenue: 4000, orders: 240 },
-  { month: "T2", revenue: 5200, orders: 290 },
-  { month: "T3", revenue: 4800, orders: 260 },
-  { month: "T4", revenue: 6200, orders: 340 },
-  { month: "T5", revenue: 5800, orders: 310 },
-  { month: "T6", revenue: 7200, orders: 420 },
-];
-
-const categoryData = [
-  { name: "Laptop", value: 35 },
-  { name: "PC", value: 25 },
-  { name: "Phụ kiện", value: 20 },
-  { name: "Linh kiện", value: 20 },
-];
+import {
+  dashboardService,
+  type DashboardOverview,
+  type DashboardSummary,
+} from "../../services/dashboardService";
 
 const COLORS = ["#3b82f6", "#0ea5e9", "#06b6d4", "#10b981"];
-
-const topProducts = [
-  { id: 1, name: "Gaming Laptop ASUS ROG", sales: 250, revenue: "125M" },
-  { id: 2, name: "RTX 4070 Graphics Card", sales: 180, revenue: "90M" },
-  { id: 3, name: "Razer Mechanical Keyboard", sales: 320, revenue: "48M" },
-  { id: 4, name: "Gaming Monitor LG 240Hz", sales: 145, revenue: "72.5M" },
-  { id: 5, name: "Steelseries Gaming Headset", sales: 220, revenue: "33M" },
-];
-
-const recentOrders = [
-  {
-    id: "ĐH001",
-    customer: "Nguyễn Văn A",
-    total: "45.5M",
-    status: "Hoàn thành",
-    date: "2024-03-10",
-  },
-  {
-    id: "ĐH002",
-    customer: "Trần Thị B",
-    total: "28.3M",
-    status: "Đang giao",
-    date: "2024-03-09",
-  },
-  {
-    id: "ĐH003",
-    customer: "Lê Văn C",
-    total: "156.8M",
-    status: "Chờ xác nhận",
-    date: "2024-03-08",
-  },
-  {
-    id: "ĐH004",
-    customer: "Phạm Thị D",
-    total: "89.2M",
-    status: "Hoàn thành",
-    date: "2024-03-07",
-  },
-];
 
 const StatCard = ({
   icon: Icon,
@@ -131,55 +79,53 @@ const StatCard = ({
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
-  useEffect(() => {
-    if (editingProductId) {
-      setActiveSection("edit-product");
-    }
-  }, [editingProductId]);
+  const handleEditProduct = (productId: string) => {
+    setEditingProductId(productId);
+    setActiveSection("edit-product");
+  };
 
-  useEffect(() => {
-    if (isCreatingProduct) {
-      setActiveSection("create-product");
-      setIsCreatingProduct(false); // Reset after setting section
-    }
-  }, [isCreatingProduct]);
+  const handleCreateProduct = () => {
+    setActiveSection("create-product");
+  };
 
-  useEffect(() => {
-    if (editingCategoryId) {
-      setActiveSection("edit-category");
-    }
-  }, [editingCategoryId]);
+  const handleEditCategory = (categoryId: string) => {
+    setEditingCategoryId(categoryId);
+    setActiveSection("edit-category");
+  };
 
-  useEffect(() => {
-    if (isCreatingCategory) {
-      setActiveSection("create-category");
-      setIsCreatingCategory(false); // Reset after setting section
-    }
-  }, [isCreatingCategory]);
+  const handleCreateCategory = () => {
+    setActiveSection("create-category");
+  };
 
   const renderSection = () => {
     switch (activeSection) {
       case "products":
         return (
           <ProductsPage
-            onEditProduct={setEditingProductId}
-            onCreateProduct={() => setIsCreatingProduct(true)}
+            onEditProduct={handleEditProduct}
+            onCreateProduct={handleCreateProduct}
           />
         );
       case "categories":
         return (
           <CategoriesPage
-            onEditCategory={setEditingCategoryId}
-            onCreateCategory={() => setIsCreatingCategory(true)}
+            onEditCategory={handleEditCategory}
+            onCreateCategory={handleCreateCategory}
           />
         );
       case "edit-category":
+        if (!editingCategoryId) {
+          return (
+            <CategoriesPage
+              onEditCategory={handleEditCategory}
+              onCreateCategory={handleCreateCategory}
+            />
+          );
+        }
         return (
           <EditCategoryPage
             categoryId={editingCategoryId!}
@@ -191,6 +137,14 @@ export default function AdminDashboard() {
           <CreateCategoryPage onBack={() => setActiveSection("categories")} />
         );
       case "edit-product":
+        if (!editingProductId) {
+          return (
+            <ProductsPage
+              onEditProduct={handleEditProduct}
+              onCreateProduct={handleCreateProduct}
+            />
+          );
+        }
         return (
           <EditProductPage
             productId={editingProductId!}
@@ -205,10 +159,6 @@ export default function AdminDashboard() {
         return <OrdersPage />;
       case "customers":
         return <CustomersPage />;
-      case "blog":
-        return <BlogPage />;
-      case "settings":
-        return <SettingsPage />;
       case "dashboard":
       default:
         return <DashboardContent />;
@@ -226,6 +176,56 @@ export default function AdminDashboard() {
 }
 
 function DashboardContent() {
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchOverview = async () => {
+      try {
+        const data = await dashboardService.getOverview();
+        if (isMounted) {
+          setOverview(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard overview", error);
+      }
+    };
+
+    fetchOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const summary: DashboardSummary | null = overview?.summary ?? null;
+
+  const getOrderStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      Pending: "Chờ xác nhận",
+      Processing: "Đang xử lý",
+      Shipped: "Đang giao",
+      Delivered: "Hoàn thành",
+      Cancelled: "Hủy",
+    };
+    return labels[status] ?? status;
+  };
+
+  const formatRevenue = (value: number) => {
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    return new Intl.NumberFormat("vi-VN").format(value);
+  };
+
+  const formatPercent = (value: number) => `${value.toFixed(1)}%`;
+
+  const formatPercentChange = (value: number) => {
+    const prefix = value > 0 ? "+" : "";
+    return `${prefix}${value.toFixed(1)}%`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -236,7 +236,7 @@ function DashboardContent() {
             Chào mừng bạn quay lại! Đây là trang tổng quan của bạn.
           </p>
         </div>
-        <Button size="lg">Xuất báo cáo</Button>
+        {/* <Button size="lg">Xuất báo cáo</Button> */}
       </div>
 
       {/* Stats Grid */}
@@ -244,30 +244,30 @@ function DashboardContent() {
         <StatCard
           icon={<ShoppingCart className="w-6 h-6" />}
           label="Tổng doanh thu"
-          value="32.8M"
-          change="+12.5%"
-          isPositive={true}
+          value={formatRevenue(summary?.totalRevenue ?? 0)}
+          change={formatPercentChange(summary?.revenueGrowthPercent ?? 0)}
+          isPositive={(summary?.revenueGrowthPercent ?? 0) >= 0}
         />
         <StatCard
           icon={<BarChart3 className="w-6 h-6" />}
           label="Đơn hàng hôm nay"
-          value="24"
-          change="+8.2%"
-          isPositive={true}
+          value={String(summary?.todayOrders ?? 0)}
+          change={formatPercentChange(summary?.ordersGrowthPercent ?? 0)}
+          isPositive={(summary?.ordersGrowthPercent ?? 0) >= 0}
         />
         <StatCard
           icon={<Users className="w-6 h-6" />}
           label="Khách hàng mới"
-          value="186"
-          change="+3.1%"
-          isPositive={true}
+          value={String(summary?.newCustomers ?? 0)}
+          change={formatPercentChange(summary?.customersGrowthPercent ?? 0)}
+          isPositive={(summary?.customersGrowthPercent ?? 0) >= 0}
         />
         <StatCard
           icon={<TrendingUp className="w-6 h-6" />}
           label="Tỷ lệ chuyển đổi"
-          value="3.24%"
-          change="-0.5%"
-          isPositive={false}
+          value={formatPercent(summary?.conversionRate ?? 0)}
+          change={formatPercentChange(summary?.conversionGrowthPercent ?? 0)}
+          isPositive={(summary?.conversionGrowthPercent ?? 0) >= 0}
         />
       </div>
 
@@ -279,7 +279,7 @@ function DashboardContent() {
             Doanh thu & Đơn hàng
           </h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={revenueData}>
+            <LineChart data={overview?.revenueData ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="month" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
@@ -316,7 +316,7 @@ function DashboardContent() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={categoryData}
+                data={overview?.categoryData ?? []}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -325,7 +325,7 @@ function DashboardContent() {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {categoryData.map((entry, index) => (
+                {(overview?.categoryData ?? []).map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -350,7 +350,7 @@ function DashboardContent() {
             </Button>
           </div>
           <div className="space-y-3">
-            {topProducts.map((product, index) => (
+            {(overview?.topProducts ?? []).map((product, index) => (
               <div
                 key={product.id}
                 className="flex items-center gap-4 p-3 hover:bg-input rounded-lg transition-colors"
@@ -368,7 +368,7 @@ function DashboardContent() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-primary">
-                    {product.revenue}đ
+                    {formatRevenue(product.revenue)}đ
                   </p>
                 </div>
               </div>
@@ -387,14 +387,14 @@ function DashboardContent() {
             </Button>
           </div>
           <div className="space-y-3">
-            {recentOrders.map((order) => (
+            {(overview?.recentOrders ?? []).map((order) => (
               <div
                 key={order.id}
                 className="flex items-center gap-4 p-3 hover:bg-input rounded-lg transition-colors border-b border-border last:border-0"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">
-                    {order.id}
+                    #{order.id}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {order.customer}
@@ -402,18 +402,18 @@ function DashboardContent() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-foreground">
-                    {order.total}
+                    {formatRevenue(order.total)}đ
                   </p>
                   <span
                     className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      order.status === "Hoàn thành"
+                      getOrderStatusLabel(order.status) === "Hoàn thành"
                         ? "bg-green-100 text-green-700"
-                        : order.status === "Đang giao"
+                        : getOrderStatusLabel(order.status) === "Đang giao"
                           ? "bg-blue-100 text-blue-700"
                           : "bg-yellow-100 text-yellow-700"
                     }`}
                   >
-                    {order.status}
+                    {getOrderStatusLabel(order.status)}
                   </span>
                 </div>
               </div>

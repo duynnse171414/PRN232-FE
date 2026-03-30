@@ -22,14 +22,32 @@ export function ProductForm({
   const [formData, setFormData] = useState<CreateProductInput>(
     product
       ? {
-          ...product,
+          name: product.name ?? "",
+          sku: product.sku ?? "",
+          slug: product.slug ?? "",
+          category: product.category ?? "",
+          categoryId: product.categoryId,
+          brandId: product.brandId,
+          description: product.description ?? "",
+          warranty: product.warranty ?? "",
+          price: product.price ?? 0,
+          discountPrice: product.discountPrice,
+          stock: product.stock ?? 0,
+          imageUrl: product.imageUrl ?? "",
+          images: product.images ?? [],
+          status: product.status ?? "draft",
+          specifications: product.specifications ?? {},
           promotionIds: product.promotionIds ?? [],
         }
       : {
           name: "",
+          sku: "",
           slug: "",
           category: "Laptops",
+          categoryId: undefined,
+          brandId: undefined,
           description: "",
+          warranty: "",
           price: 0,
           discountPrice: undefined,
           stock: 0,
@@ -60,7 +78,12 @@ export function ProductForm({
     const loadCategories = async () => {
       try {
         const data = await categoryService.getCategories();
-        setCategories(data);
+        setCategories(
+          data.map((cat) => ({
+            id: Number(cat.id),
+            name: cat.name,
+          })),
+        );
       } catch (error) {
         console.error("Failed to load categories:", error);
       } finally {
@@ -138,6 +161,15 @@ export function ProductForm({
     await onSubmit(formData);
   };
 
+  const handleCategoryChange = (value: string) => {
+    const selected = categories.find((cat) => cat.name === value);
+    setFormData((prev) => ({
+      ...prev,
+      category: value,
+      categoryId: selected?.id,
+    }));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Info */}
@@ -177,12 +209,42 @@ export function ProductForm({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
+                SKU *
+              </label>
+              <Input
+                type="text"
+                name="sku"
+                value={formData.sku}
+                onChange={handleInputChange}
+                placeholder="VD: LAP-ROG-001"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Bảo hành *
+              </label>
+              <Input
+                type="text"
+                name="warranty"
+                value={formData.warranty}
+                onChange={handleInputChange}
+                placeholder="VD: 24 tháng"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Danh mục *
               </label>
               <select
                 name="category"
                 value={formData.category}
-                onChange={handleInputChange}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                 disabled={loadingCategories}
               >

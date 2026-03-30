@@ -4,6 +4,7 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Card } from "../../../components/ui/card";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { productService } from "../../../services/productService";
 
 interface ProductsPageProps {
   onEditProduct: (productId: string) => void;
@@ -15,6 +16,9 @@ export default function ProductsPage({
   onCreateProduct,
 }: ProductsPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
@@ -26,20 +30,16 @@ export default function ProductsPage({
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (search) params.append("search", search);
-      if (category) params.append("category", category);
-      if (status) params.append("status", status);
-      params.append("page", page.toString());
-      params.append("limit", "10");
+      const result = await productService.getAdminProducts({
+        search,
+        category,
+        status,
+        page,
+        limit: 10,
+      });
 
-      const res = await fetch(`/api/products?${params}`);
-      const data = await res.json();
-
-      if (data.success) {
-        setProducts(data.data);
-        setTotalPages(data.pagination.totalPages);
-      }
+      setProducts(result.products);
+      setTotalPages(result.totalPages);
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -55,34 +55,29 @@ export default function ProductsPage({
     fetchProducts();
   }, [search, category, status, page]);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await productService.getCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setProducts(products.filter((p) => p.id !== id));
-        setDeleteId(null);
-      }
+      await productService.deleteAdminProduct(id);
+      setProducts(products.filter((p) => p.id !== id));
+      setDeleteId(null);
     } catch (error) {
       console.error("Error deleting product:", error);
     }
   };
 
-  const categories = [
-    "Laptops",
-    "Graphics Cards",
-    "Processors",
-    "Motherboards",
-    "RAM",
-    "Storage",
-    "Power Supplies",
-    "Cases",
-    "Cooling",
-    "Monitors",
-    "Keyboards",
-    "Mice",
-    "Headsets",
-    "Peripherals",
-  ];
   const statuses = ["active", "inactive", "draft"];
 
   const getStatusBadge = (status: string) => {
@@ -156,8 +151,8 @@ export default function ProductsPage({
             >
               <option value="">Tất cả danh mục</option>
               {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
                 </option>
               ))}
             </select>

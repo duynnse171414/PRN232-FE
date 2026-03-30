@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -26,6 +26,22 @@ export interface OrderDto {
   items: OrderItem[];
 }
 
+export interface AdminOrdersQuery {
+  search?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrdersResult {
+  orders: OrderDto[];
+  total: number;
+}
+
+export interface UpdateOrderStatusRequest {
+  status: string;
+}
+
 export interface CheckoutFromCartRequest {
   addressId?: number;
   notes?: string;
@@ -46,17 +62,57 @@ export interface PlaceOrderRequest {
 
 export const orderService = {
   async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', payload);
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>(
+      "/api/Orders/checkout",
+      payload,
+    );
     return res.data;
   },
 
   async placeOrder(payload: PlaceOrderRequest): Promise<OrderDto> {
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', payload);
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>(
+      "/api/Orders",
+      payload,
+    );
     return res.data;
   },
 
   async getOrderById(orderId: number): Promise<OrderDto> {
-    const res = await apiClient.get<ApiEnvelope<OrderDto>>(`/api/Orders/${orderId}`);
+    const res = await apiClient.get<ApiEnvelope<OrderDto>>(
+      `/api/Orders/${orderId}`,
+    );
     return res.data;
+  },
+
+  async getAdminOrders(query?: AdminOrdersQuery): Promise<AdminOrdersResult> {
+    const params = new URLSearchParams();
+    if (query?.search) params.set("search", query.search);
+    if (query?.status) params.set("status", query.status);
+    if (query?.page !== undefined) params.set("page", String(query.page));
+    if (query?.pageSize !== undefined)
+      params.set("pageSize", String(query.pageSize));
+    const qs = params.toString();
+    const res = await apiClient.get<
+      ApiEnvelope<
+        OrderDto[] | { items?: OrderDto[]; data?: OrderDto[]; total?: number }
+      >
+    >(`/api/Orders${qs ? `?${qs}` : ""}`);
+    const payload = res.data as any;
+    let orders: OrderDto[] = [];
+    if (Array.isArray(payload)) {
+      orders = payload;
+    } else if (Array.isArray(payload?.items)) {
+      orders = payload.items;
+    } else if (Array.isArray(payload?.data)) {
+      orders = payload.data;
+    }
+    return {
+      orders,
+      total: payload?.total ?? payload?.totalCount ?? orders.length,
+    };
+  },
+
+  async updateAdminOrderStatus(orderId: number, status: string): Promise<void> {
+    await apiClient.put(`/api/Orders/${orderId}/status`, { status });
   },
 };

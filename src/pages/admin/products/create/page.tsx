@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ProductForm } from "@/components/admin/product-form";
-import { CreateProductInput } from "@/lib/types/product";
-import { Card } from "@/components/ui/card";
+import { ProductForm } from "../../../../components/admin/product-form";
+import { CreateProductInput } from "../../../../lib/types/product";
+import { Card } from "../../../../components/ui/card";
+import { productService } from "../../../../services/productService";
 
 interface CreateProductPageProps {
   onBack: () => void;
@@ -16,21 +17,11 @@ export default function CreateProductPage({ onBack }: CreateProductPageProps) {
     setError(null);
 
     try {
-      const res = await fetch("/api/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const result = await res.json();
-
-      if (result.success) {
-        onBack();
-      } else {
-        setError(result.error || "Có lỗi xảy ra");
-      }
+      await productService.createAdminProduct(data);
+      onBack();
     } catch (err) {
-      setError("Lỗi kết nối");
+      const errorMessage = err instanceof Error ? err.message : "Lỗi kết nối";
+      setError(errorMessage);
       console.error(err);
     } finally {
       setIsLoading(false);

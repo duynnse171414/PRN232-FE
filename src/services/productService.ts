@@ -1,6 +1,10 @@
 import { apiClient } from "./apiClient";
 import { categoryService } from "./categoryService";
 import { Product } from "../types";
+import {
+  CreateProductInput,
+  Product as AdminProduct,
+} from "../lib/types/product";
 
 interface BackendSpec {
   key: string;
@@ -30,6 +34,39 @@ interface ProductQuery {
   maxPrice?: number;
   page?: number;
   pageSize?: number;
+}
+
+interface ApiEnvelope<T> {
+  success?: boolean;
+  data?: T;
+  error?: string;
+  pagination?: {
+    totalPages?: number;
+  };
+}
+
+export interface AdminProductsQuery {
+  search?: string;
+  category?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminProductsResult {
+  products: AdminProduct[];
+  totalPages: number;
+}
+
+interface AdminProductUpsertDto {
+  name: string;
+  sku: string;
+  description: string;
+  warranty: string;
+  price: number;
+  stock: number;
+  brandId?: number;
+  categoryId?: number;
 }
 
 const fallbackImage =
@@ -94,6 +131,21 @@ function toQueryString(query?: ProductQuery) {
   return q ? `?${q}` : "";
 }
 
+function toAdminProductUpsertDto(
+  payload: CreateProductInput,
+): AdminProductUpsertDto {
+  return {
+    name: payload.name,
+    sku: payload.sku,
+    description: payload.description,
+    warranty: payload.warranty,
+    price: payload.price,
+    stock: payload.stock,
+    brandId: payload.brandId,
+    categoryId: payload.categoryId,
+  };
+}
+
 export const productService = {
   async getProducts(query?: ProductQuery): Promise<Product[]> {
     const res = await apiClient.get<unknown>(
@@ -121,5 +173,96 @@ export const productService = {
       id: Number(x.id),
       name: x.name || x.brandName || String(x.id),
     }));
+  },
+
+  async getAdminProducts(
+    query: AdminProductsQuery,
+  ): Promise<AdminProductsResult> {
+    const params = new URLSearchParams();
+    if (query.search) params.append("search", query.search);
+    if (query.category) params.append("category", query.category);
+    if (query.status) params.append("status", query.status);
+    params.append("page", String(query.page ?? 1));
+    params.append("limit", String(query.limit ?? 10));
+
+    const response = await apiClient.get<
+      ApiEnvelope<AdminProduct[]> | AdminProduct[]
+    >(`/api/Products?${params.toString()}`);
+
+    if (Array.isArray(response)) {
+      return { products: response, totalPages: 1 };
+    }
+
+    if (response.success === false) {
+      throw new Error(response.error || "Không thể tải danh sách sản phẩm");
+    }
+
+    return {
+      products: response.data ?? [],
+      totalPages: response.pagination?.totalPages ?? 1,
+    };
+  },
+
+  async getAdminProductById(productId: string): Promise<AdminProduct> {
+    const response = await apiClient.get<
+      ApiEnvelope<AdminProduct> | AdminProduct
+    >(`/api/Products/${productId}`);
+
+    if (response && typeof response === "object" && "id" in response) {
+      return response as AdminProduct;
+    }
+
+    const wrapped = response as ApiEnvelope<AdminProduct>;
+    if (wrapped.success === false || !wrapped.data) {
+      throw new Error(wrapped.error || "Không tìm thấy sản phẩm");
+    }
+
+    return wrapped.data;
+  },
+
+  async createAdminProduct(payload: CreateProductInput): Promise<void> {
+    const dto = toAdminProductUpsertDto(payload);
+    const response = await apiClient.post<ApiEnvelope<unknown> | unknown>(
+      "/api/Products",
+      dto,
+    );
+
+    if (
+      response &&
+      typeof response === "object" &&
+      "success" in (response as Record<string, unknown>) &&
+      (response as ApiEnvelope<unknown>).success === false
+    ) {
+      throw new Error(
+        (response as ApiEnvelope<unknown>).error || "Không thể tạo sản phẩm",
+      );
+    }
+  },
+
+  async updateAdminProduct(
+    productId: string,
+    payload: CreateProductInput,
+  ): Promise<void> {
+    const dto = toAdminProductUpsertDto(payload);
+    const response = await apiClient.put<ApiEnvelope<unknown> | unknown>(
+      `/api/Products/${productId}`,
+      dto,
+    );
+
+    if (
+      response &&
+      typeof response === "object" &&
+      "success" in (response as Record<string, unknown>) &&
+      (response as ApiEnvelope<unknown>).success === false
+    ) {
+      throw new Error(
+        (response as ApiEnvelope<unknown>).error ||
+          "Không thể cập nhật sản phẩm",
+      );
+    }
+  },
+
+  async deleteAdminProduct(productId: string): Promise<void> {
+    await apiClient.delete(`/api/Products/${productId}`);
   },
 };
