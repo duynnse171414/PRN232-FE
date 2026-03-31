@@ -45,6 +45,7 @@ export interface UpdateOrderStatusRequest {
 export interface CheckoutFromCartRequest {
   addressId?: number;
   notes?: string;
+  paymentMethod?: string;
 }
 
 export interface PlaceOrderRequest {
