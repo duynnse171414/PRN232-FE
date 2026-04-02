@@ -8,6 +8,11 @@ export interface Promotion {
   end_date?: string;
 }
 
+function toNumber(value: unknown): number | undefined {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
 function unwrapArray<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[];
   if (payload && typeof payload === "object") {
@@ -25,7 +30,14 @@ export const promotionService = {
     return unwrapArray<any>(res).map((x) => ({
       id: x.id,
       name: x.name,
-      discount_percent: x.discount_percent,
+      discount_percent: toNumber(
+        x.discount_percent ??
+          x.discountPercent ??
+          x.discount_percentage ??
+          x.discountPercentage ??
+          x.percent ??
+          x.value,
+      ),
       start_date: x.start_date,
       end_date: x.end_date,
     }));
