@@ -19,9 +19,12 @@ export default function ProductsPage({
   const [categories, setCategories] = useState<
     Array<{ id: number; name: string }>
   >([]);
+  const [brands, setBrands] = useState<Array<{ id: number; name: string }>>([]);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [brandId, setBrandId] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
@@ -32,8 +35,10 @@ export default function ProductsPage({
     try {
       const result = await productService.getAdminProducts({
         search,
-        category,
-        status,
+        categoryId: categoryId ? Number(categoryId) : undefined,
+        brandId: brandId ? Number(brandId) : undefined,
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
         page,
         limit: 10,
       });
@@ -49,23 +54,27 @@ export default function ProductsPage({
 
   useEffect(() => {
     setPage(1);
-  }, [search, category, status]);
+  }, [search, categoryId, brandId, minPrice, maxPrice]);
 
   useEffect(() => {
     fetchProducts();
-  }, [search, category, status, page]);
+  }, [search, categoryId, brandId, minPrice, maxPrice, page]);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchFilters = async () => {
       try {
-        const data = await productService.getCategories();
-        setCategories(data);
+        const [categoryData, brandData] = await Promise.all([
+          productService.getCategories(),
+          productService.getBrands(),
+        ]);
+        setCategories(categoryData);
+        setBrands(brandData);
       } catch (error) {
-        console.error("Error fetching categories:", error);
+        console.error("Error fetching filters:", error);
       }
     };
 
-    fetchCategories();
+    fetchFilters();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -76,28 +85,6 @@ export default function ProductsPage({
     } catch (error) {
       console.error("Error deleting product:", error);
     }
-  };
-
-  const statuses = ["active", "inactive", "draft"];
-
-  const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      active: "bg-green-100 text-green-800",
-      inactive: "bg-red-100 text-red-800",
-      draft: "bg-yellow-100 text-yellow-800",
-    };
-    const labels: Record<string, string> = {
-      active: "Kích hoạt",
-      inactive: "Tắt",
-      draft: "Nháp",
-    };
-    return (
-      <span
-        className={`px-3 py-1 rounded-full text-sm font-medium ${colors[status]}`}
-      >
-        {labels[status]}
-      </span>
-    );
   };
 
   return (
@@ -123,7 +110,7 @@ export default function ProductsPage({
 
       {/* Filters */}
       <Card className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Tìm kiếm
@@ -145,13 +132,13 @@ export default function ProductsPage({
               Danh mục
             </label>
             <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
             >
               <option value="">Tất cả danh mục</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>
+                <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               ))}
@@ -160,24 +147,46 @@ export default function ProductsPage({
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Trạng thái
+              Thương hiệu
             </label>
             <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              value={brandId}
+              onChange={(e) => setBrandId(e.target.value)}
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
             >
-              <option value="">Tất cả trạng thái</option>
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {s === "active"
-                    ? "Kích hoạt"
-                    : s === "inactive"
-                      ? "Tắt"
-                      : "Nháp"}
+              <option value="">Tất cả thương hiệu</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Giá từ
+            </label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="VD: 1000000"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Đến giá
+            </label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="VD: 5000000"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
           </div>
 
           <div className="flex items-end">
@@ -186,8 +195,10 @@ export default function ProductsPage({
               className="w-full"
               onClick={() => {
                 setSearch("");
-                setCategory("");
-                setStatus("");
+                setCategoryId("");
+                setBrandId("");
+                setMinPrice("");
+                setMaxPrice("");
               }}
             >
               Đặt lại
@@ -219,13 +230,13 @@ export default function ProductsPage({
                       Danh mục
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      Thương hiệu
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                       Giá
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                       Kho
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                      Trạng thái
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                       Thao tác
@@ -243,34 +254,32 @@ export default function ProductsPage({
                           <img
                             src={product.imageUrl}
                             alt={product.name}
-                            className="w-10 h-10 rounded object-cover bg-muted"
+                            className="w-12 h-12 rounded object-cover bg-muted border border-border"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                "https://placehold.co/48x48?text=N%2FA";
+                            }}
                           />
                           <div>
                             <p className="font-medium text-foreground">
                               {product.name}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              {product.slug}
-                            </p>
+                            {product.sku && (
+                              <p className="text-xs text-muted-foreground">
+                                SKU: {product.sku}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         {product.category}
                       </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {product.brandName ?? "—"}
+                      </td>
                       <td className="px-6 py-4 text-sm font-medium text-foreground">
-                        {product.discountPrice ? (
-                          <>
-                            <span className="line-through text-muted-foreground mr-2">
-                              ₫{product.price.toLocaleString()}
-                            </span>
-                            <span className="text-primary">
-                              ₫{product.discountPrice.toLocaleString()}
-                            </span>
-                          </>
-                        ) : (
-                          `₫${product.price.toLocaleString()}`
-                        )}
+                        ₫{product.price.toLocaleString("vi-VN")}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         <span
@@ -284,9 +293,6 @@ export default function ProductsPage({
                         >
                           {product.stock}
                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {getStatusBadge(product.status)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

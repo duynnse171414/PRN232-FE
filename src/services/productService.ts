@@ -15,7 +15,9 @@ interface BackendSpec {
 interface BackendProduct {
   id: number;
   name: string;
+  sku?: string;
   description?: string;
+  warranty?: string;
   price: number;
   stock: number;
   brandId: number;
@@ -24,6 +26,7 @@ interface BackendProduct {
   categoryName: string;
   imageUrls?: string[];
   specs?: BackendSpec[];
+  createdAt?: string;
 }
 
 interface ProductQuery {
@@ -47,8 +50,10 @@ interface ApiEnvelope<T> {
 
 export interface AdminProductsQuery {
   search?: string;
-  category?: string;
-  status?: string;
+  categoryId?: number;
+  brandId?: number;
+  minPrice?: number;
+  maxPrice?: number;
   page?: number;
   limit?: number;
 }
@@ -67,6 +72,7 @@ interface AdminProductUpsertDto {
   stock: number;
   brandId?: number;
   categoryId?: number;
+  imageUrls?: string[];
 }
 
 const fallbackImage =
@@ -82,6 +88,27 @@ function unwrapArray<T>(payload: unknown): T[] {
     if (Array.isArray(obj.results)) return obj.results;
   }
   return [];
+}
+
+function mapAdminProduct(item: BackendProduct): AdminProduct {
+  return {
+    id: String(item.id),
+    name: item.name ?? "Unnamed",
+    sku: item.sku,
+    slug: item.sku ?? String(item.id),
+    category: item.categoryName ?? "",
+    categoryId: item.categoryId,
+    brandId: item.brandId,
+    brandName: item.brandName ?? "",
+    description: item.description ?? "",
+    warranty: item.warranty,
+    price: item.price ?? 0,
+    stock: item.stock ?? 0,
+    imageUrl: item.imageUrls?.[0] ?? fallbackImage,
+    images: item.imageUrls ?? [],
+    status: "active",
+    specifications: {},
+  };
 }
 
 function mapProduct(item: BackendProduct): Product {
@@ -134,6 +161,12 @@ function toQueryString(query?: ProductQuery) {
 function toAdminProductUpsertDto(
   payload: CreateProductInput,
 ): AdminProductUpsertDto {
+  const imageUrls = payload.images?.length
+    ? payload.images.filter(Boolean)
+    : payload.imageUrl
+      ? [payload.imageUrl]
+      : [];
+
   return {
     name: payload.name,
     sku: payload.sku,
@@ -143,6 +176,7 @@ function toAdminProductUpsertDto(
     stock: payload.stock,
     brandId: payload.brandId,
     categoryId: payload.categoryId,
+    imageUrls,
   };
 }
 
@@ -179,45 +213,54 @@ export const productService = {
     query: AdminProductsQuery,
   ): Promise<AdminProductsResult> {
     const params = new URLSearchParams();
-    if (query.search) params.append("search", query.search);
-    if (query.category) params.append("category", query.category);
-    if (query.status) params.append("status", query.status);
-    params.append("page", String(query.page ?? 1));
-    params.append("limit", String(query.limit ?? 10));
+    params.append("Search", query.search ?? "");
+    if (query.categoryId !== undefined)
+      params.append("CategoryId", String(query.categoryId));
+    if (query.brandId !== undefined)
+      params.append("BrandId", String(query.brandId));
+    if (query.minPrice !== undefined)
+      params.append("MinPrice", String(query.minPrice));
+    if (query.maxPrice !== undefined)
+      params.append("MaxPrice", String(query.maxPrice));
+    params.append("Page", String(query.page ?? 1));
+    params.append("PageSize", String(query.limit ?? 10));
 
-    const response = await apiClient.get<
-      ApiEnvelope<AdminProduct[]> | AdminProduct[]
-    >(`/api/Products?${params.toString()}`);
+    const response = await apiClient.get<any>(
+      `/api/Products?${params.toString()}`,
+    );
 
-    if (Array.isArray(response)) {
-      return { products: response, totalPages: 1 };
-    }
+    // Handle { data: [], total, page, pageSize } envelope
+    const items: BackendProduct[] = Array.isArray(response)
+      ? response
+      : Array.isArray(response?.data)
+        ? response.data
+        : [];
 
-    if (response.success === false) {
-      throw new Error(response.error || "Không thể tải danh sách sản phẩm");
-    }
+    const total: number = response?.total ?? items.length;
+    const pageSize: number = response?.pageSize ?? query.limit ?? 10;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     return {
-      products: response.data ?? [],
-      totalPages: response.pagination?.totalPages ?? 1,
+      products: items.map(mapAdminProduct),
+      totalPages,
     };
   },
 
   async getAdminProductById(productId: string): Promise<AdminProduct> {
     const response = await apiClient.get<
-      ApiEnvelope<AdminProduct> | AdminProduct
+      ApiEnvelope<BackendProduct> | BackendProduct
     >(`/api/Products/${productId}`);
 
     if (response && typeof response === "object" && "id" in response) {
-      return response as AdminProduct;
+      return mapAdminProduct(response as BackendProduct);
     }
 
-    const wrapped = response as ApiEnvelope<AdminProduct>;
+    const wrapped = response as ApiEnvelope<BackendProduct>;
     if (wrapped.success === false || !wrapped.data) {
       throw new Error(wrapped.error || "Không tìm thấy sản phẩm");
     }
 
-    return wrapped.data;
+    return mapAdminProduct(wrapped.data);
   },
 
   async createAdminProduct(payload: CreateProductInput): Promise<void> {

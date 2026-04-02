@@ -3,19 +3,19 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Card } from "../../../components/ui/card";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
-import { categoryService } from "../../../services/categoryService";
-import { Category } from "../../../types";
+import { brandService } from "../../../services/brandService";
+import { Brand } from "../../../types";
 
-interface CategoriesPageProps {
-  onEditCategory: (categoryId: string) => void;
-  onCreateCategory: () => void;
+interface BrandsPageProps {
+  onEditBrand: (brandId: string) => void;
+  onCreateBrand: () => void;
 }
 
-export default function CategoriesPage({
-  onEditCategory,
-  onCreateCategory,
-}: CategoriesPageProps) {
-  const [categories, setCategories] = useState<Category[]>([]);
+export default function BrandsPage({
+  onEditBrand,
+  onCreateBrand,
+}: BrandsPageProps) {
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -23,11 +23,11 @@ export default function CategoriesPage({
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchBrands = async () => {
       setLoading(true);
       try {
-        const data = await categoryService.getCategories();
-        setCategories(data);
+        const data = await brandService.getBrands();
+        setBrands(data);
         setTotalPages(1);
       } catch (err) {
         console.error(err);
@@ -36,17 +36,17 @@ export default function CategoriesPage({
       }
     };
 
-    fetchCategories();
+    fetchBrands();
   }, []);
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(search.toLowerCase()),
+  const filteredBrands = brands.filter((brand) =>
+    brand.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleDelete = async (id: string) => {
     try {
-      await categoryService.deleteCategory(id);
-      setCategories((prev) => prev.filter((cat) => cat.id !== id));
+      await brandService.deleteBrand(id);
+      setBrands((prev) => prev.filter((brand) => brand.id !== id));
     } catch (err) {
       console.error(err);
     } finally {
@@ -60,10 +60,10 @@ export default function CategoriesPage({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
-              Quản lý danh mục
+              Quản lý thương hiệu
             </h1>
             <p className="text-muted-foreground mt-2">
-              Quản lý các danh mục sản phẩm
+              Quản lý thương hiệu sản phẩm
             </p>
           </div>
         </div>
@@ -76,31 +76,29 @@ export default function CategoriesPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            Quản lý danh mục
+            Quản lý thương hiệu
           </h1>
           <p className="text-muted-foreground mt-2">
-            Quản lý các danh mục sản phẩm
+            Quản lý thương hiệu sản phẩm
           </p>
         </div>
         <Button
           className="bg-primary text-primary-foreground hover:bg-primary/90"
-          onClick={onCreateCategory}
+          onClick={onCreateBrand}
         >
           <Plus className="w-5 h-5 mr-2" />
-          Thêm danh mục mới
+          Thêm thương hiệu mới
         </Button>
       </div>
 
-      {/* Search */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Tìm kiếm danh mục..."
+            placeholder="Tìm kiếm thương hiệu..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -108,29 +106,28 @@ export default function CategoriesPage({
         </div>
       </div>
 
-      {/* Categories Table */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
-                <th className="text-left p-4 font-medium">Tên danh mục</th>
+                <th className="text-left p-4 font-medium">Tên thương hiệu</th>
                 <th className="text-left p-4 font-medium">Số sản phẩm</th>
                 <th className="text-left p-4 font-medium">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCategories.map((category) => (
+              {filteredBrands.map((brand) => (
                 <tr
-                  key={category.id}
+                  key={brand.id}
                   className="border-b border-border hover:bg-muted/50"
                 >
                   <td className="p-4">
-                    <div className="font-medium">{category.name}</div>
+                    <div className="font-medium">{brand.name}</div>
                   </td>
                   <td className="p-4">
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {category.productCount ?? 0} sản phẩm
+                      {brand.productCount ?? 0} sản phẩm
                     </span>
                   </td>
                   <td className="p-4">
@@ -138,14 +135,14 @@ export default function CategoriesPage({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => onEditCategory(category.id)}
+                        onClick={() => onEditBrand(brand.id)}
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setDeleteId(category.id)}
+                        onClick={() => setDeleteId(brand.id)}
                         className="hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -158,10 +155,9 @@ export default function CategoriesPage({
           </table>
         </div>
 
-        {/* Pagination */}
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="text-sm text-muted-foreground">
-            Hiển thị {filteredCategories.length} danh mục
+            Hiển thị {filteredBrands.length} thương hiệu
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -187,13 +183,12 @@ export default function CategoriesPage({
         </div>
       </Card>
 
-      {/* Delete Confirmation Modal */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md p-6">
             <h3 className="text-lg font-semibold mb-4">Xác nhận xóa</h3>
             <p className="text-muted-foreground mb-6">
-              Bạn có chắc chắn muốn xóa danh mục này? Hành động này không thể
+              Bạn có chắc chắn muốn xóa thương hiệu này? Hành động này không thể
               hoàn tác.
             </p>
             <div className="flex gap-3">

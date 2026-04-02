@@ -25,13 +25,16 @@ interface BackendCategory {
   id: number | string;
   name: string;
   productCount?: number;
+  totalProducts?: number;
+  totalProduct?: number;
 }
 
 function mapCategory(item: BackendCategory): Category {
   return {
     id: String(item.id),
     name: item.name,
-    productCount: item.productCount,
+    productCount:
+      item.productCount ?? item.totalProducts ?? item.totalProduct ?? 0,
   };
 }
 

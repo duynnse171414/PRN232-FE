@@ -17,6 +17,20 @@ function getCustomerPhone(c: CustomerDto): string {
 }
 
 function getCustomerLocation(c: CustomerDto): string {
+  const selectedAddress =
+    c.addresses?.find((address) => address.isDefault) ?? c.addresses?.[0];
+
+  if (selectedAddress) {
+    const parts = [
+      selectedAddress.addressLine,
+      selectedAddress.ward,
+      selectedAddress.district,
+      selectedAddress.city,
+    ].filter(Boolean);
+
+    if (parts.length > 0) return parts.join(", ");
+  }
+
   return c.city ?? c.province ?? c.address ?? "—";
 }
 
@@ -200,24 +214,6 @@ export default function CustomersPage() {
                       <span className="text-muted-foreground">
                         {getCustomerLocation(customer)}
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-border">
-                    <div className="bg-input rounded-lg p-2 text-center">
-                      <p className="text-xs text-muted-foreground">Đơn hàng</p>
-                      <p className="text-lg font-bold text-primary">
-                        {customer.totalOrders ?? "—"}
-                      </p>
-                    </div>
-                    <div className="bg-input rounded-lg p-2 text-center">
-                      <p className="text-xs text-muted-foreground">Đã chi</p>
-                      <p className="text-lg font-bold text-primary">
-                        {customer.totalSpent !== undefined
-                          ? customer.totalSpent.toLocaleString("vi-VN") + "đ"
-                          : "—"}
-                      </p>
                     </div>
                   </div>
 
