@@ -47,10 +47,19 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!isAuthenticated) { setAddressOptions([]); return; }
     const loadAddresses = async () => {
-      const mapped = await addressService.getMyAddresses();
-      if (mapped.length > 0) {
-        setAddressOptions(mapped);
-        setFormData(prev => ({ ...prev, addressId: String(mapped[0].id) }));
+      const fetched = await addressService.getMyAddresses();
+      const options = fetched.map((addr: any) => ({
+        id: addr.id,
+        label: addr.label
+          ?? addr.fullAddress
+          ?? [addr.address, addr.street, addr.city, addr.state, addr.zipCode, addr.country]
+            .filter(Boolean)
+            .join(', ')
+          ?? `Address #${addr.id}`,
+      }));
+      if (options.length > 0) {
+        setAddressOptions(options);
+        setFormData(prev => ({ ...prev, addressId: String(options[0].id) }));
       } else { setAddressOptions([]); }
     };
     loadAddresses();

@@ -55,40 +55,33 @@ export interface CreateVnpayPaymentUrlResponse {
 }
 
 export const orderService = {
-  async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
-    const normalizedPayload: CheckoutFromCartRequest = {
-      addressId: payload.addressId,
-      voucherId: payload.voucherId ?? null,
-      voucherCode: payload.voucherCode ?? null,
-      notes: payload.notes,
-      paymentMethod: payload.paymentMethod,
-    };
+  // Thêm hàm này để sửa lỗi ở ProfilePage.tsx
+  async getMyOrders(): Promise<OrderDto[]> {
+    // Lưu ý: Endpoint này phải khớp với Swagger của bạn (thường là /api/Orders/my-orders hoặc tương đương)
+    const res = await apiClient.get<ApiEnvelope<OrderDto[]> | OrderDto[]>('/api/Orders/my');
+    
+    // Xử lý nếu BE trả về envelope hoặc array trực tiếp
+    if (Array.isArray(res)) return res;
+    return (res as ApiEnvelope<OrderDto[]>).data;
+  },
 
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', normalizedPayload);
+  async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', payload);
     return res.data;
   },
 
   async placeOrder(payload: PlaceOrderRequest): Promise<OrderDto> {
-    const normalizedPayload: PlaceOrderRequest = {
-      ...payload,
-      voucherId: payload.voucherId ?? null,
-      voucherCode: payload.voucherCode ?? null,
-    };
-
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', normalizedPayload);
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', payload);
     return res.data;
   },
 
-  async createVnpayPaymentUrl(): Promise<string> {
-    const res = await apiClient.post<ApiEnvelope<CreateVnpayPaymentUrlResponse> | CreateVnpayPaymentUrlResponse>(
-      '/api/vnpay/create-payment-url'
+  async createVnpayPaymentUrl(orderId?: number, amount?: number): Promise<string> {
+    // Cập nhật để truyền tham số nếu BE yêu cầu
+    const res = await apiClient.post<ApiEnvelope<CreateVnpayPaymentUrlResponse>>(
+      '/api/vnpay/create-payment-url', 
+      { orderId, amount }
     );
-
-    if ((res as ApiEnvelope<CreateVnpayPaymentUrlResponse>)?.data?.paymentUrl) {
-      return (res as ApiEnvelope<CreateVnpayPaymentUrlResponse>).data.paymentUrl;
-    }
-
-    return (res as CreateVnpayPaymentUrlResponse).paymentUrl;
+    return res.data.paymentUrl;
   },
 
   async getOrderById(orderId: number): Promise<OrderDto> {

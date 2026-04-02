@@ -14,6 +14,7 @@ import { SignupPage } from "./pages/SignupPage";
 import { BuildPCPage } from "./pages/BuildPCPage";
 import { Toaster } from "./components/ui/sonner";
 import AdminDashboard from "./pages/admin/page";
+import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/build-pc" element={<BuildPCPage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Routes>
             </main>
             <Footer />

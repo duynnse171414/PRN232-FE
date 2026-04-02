@@ -77,7 +77,11 @@ export function Header() {
                   className={`text-sm ${isAdmin ? "text-blue-600 hover:underline" : ""}`}
                   onClick={handleProfileClick}
                 >
-                  Hi, {user?.name}
+                
+                  <Link to="/profile" className="flex items-center gap-2 hover:text-blue-600 transition-all">
+  <User size={18} />
+  <span>Hi, {user?.name}</span>
+</Link>
                 </button>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   Logout
