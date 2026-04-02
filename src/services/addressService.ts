@@ -1,48 +1,53 @@
-import { AddressOption } from "../types";
 import { apiClient } from "./apiClient";
 
-function normalizeAddressList(payload: unknown): any[] {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === "object") {
-    const obj = payload as any;
-    if (Array.isArray(obj.data)) return obj.data;
-    if (Array.isArray(obj.items)) return obj.items;
-  }
-  return [];
-}
-
-function mapAddress(item: any, index: number): AddressOption | null {
-  const id = Number(item?.id ?? item?.addressId ?? index + 1);
-  if (!Number.isFinite(id) || id <= 0) return null;
-
-  const label =
-    [
-      item?.line1,
-      item?.line2,
-      item?.addressLine,
-      item?.street,
-      item?.ward,
-      item?.district,
-      item?.city,
-      item?.province,
-      item?.country,
-    ]
-      .filter(Boolean)
-      .join(", ") || `Address #${id}`;
-
-  return { id, label };
+export interface AddressDto {
+  id: number;
+  street?: string;
+  ward?: string;
+  district?: string;
+  city?: string;
+  province?: string;
+  zipCode?: string;
+  isDefault?: boolean;
+  line1?: string;
 }
 
 export const addressService = {
-  async getMyAddresses(): Promise<AddressOption[]> {
+  async getMyAddresses(): Promise<AddressDto[]> {
     try {
-      const res = await apiClient.get<unknown>("/api/Customers/me/addresses");
-      const rawList = normalizeAddressList(res);
-      return rawList
-        .map((item, index) => mapAddress(item, index))
-        .filter((x): x is AddressOption => !!x);
-    } catch {
+      const res = await apiClient.get<any>("/api/Customers/me/addresses");
+      let rawData = res;
+      if (res && typeof res === 'object') {
+        if (Array.isArray(res.data)) rawData = res.data;
+        else if (res.data && Array.isArray(res.data.data)) rawData = res.data.data;
+      }
+      if (!Array.isArray(rawData)) return [];
+      return rawData.map((item: any) => ({
+        id: item.id || item.addressId,
+        street: item.street || item.line1 || item.addressLine || "Unknown Street",
+        ward: item.ward || "",
+        district: item.district || "",
+        city: item.city || item.province || "",
+        province: item.province || "",
+        zipCode: item.zipCode || "",
+        isDefault: !!item.isDefault
+      }));
+    } catch (error) {
+      console.error("Error fetching addresses:", error);
       return [];
     }
   },
+
+  async createAddress(payload: any): Promise<AddressDto> {
+    const res = await apiClient.post<AddressDto>("/api/Customers/me/addresses", payload);
+    return (res as any).data || res;
+  },
+
+  async updateAddress(id: number, payload: any): Promise<void> {
+    await apiClient.put(`/api/Customers/me/addresses/${id}`, payload);
+  },
+
+  async deleteAddress(id: number): Promise<void> {
+    await apiClient.delete(`/api/Customers/me/addresses/${id}`);
+  }
 };

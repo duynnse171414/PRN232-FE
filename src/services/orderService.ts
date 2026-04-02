@@ -169,6 +169,13 @@ function unwrapSingleOrder(payload: unknown): OrderDto {
 }
 
 export const orderService = {
+  async getMyOrders(): Promise<OrderDto[]> {
+    const res = await apiClient.get<ApiEnvelope<OrderDto[]> | OrderDto[]>(
+      "/api/Orders/my",
+    );
+    return unwrapOrders(res);
+  },
+
   async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
     const normalizedPayload: CheckoutFromCartRequest = {
       addressId: payload.addressId,
@@ -213,10 +220,18 @@ export const orderService = {
     return { orders, total };
   },
 
-  async createVnpayPaymentUrl(): Promise<string> {
+  async createVnpayPaymentUrl(
+    orderId?: number,
+    amount?: number,
+  ): Promise<string> {
+    const payload =
+      orderId !== undefined || amount !== undefined
+        ? { orderId, amount }
+        : undefined;
+
     const res = await apiClient.post<
       ApiEnvelope<CreateVnpayPaymentUrlResponse> | CreateVnpayPaymentUrlResponse
-    >("/api/vnpay/create-payment-url");
+    >("/api/vnpay/create-payment-url", payload);
     const wrapped = res as ApiEnvelope<CreateVnpayPaymentUrlResponse>;
 
     if (wrapped?.data?.paymentUrl) {
