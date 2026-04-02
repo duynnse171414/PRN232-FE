@@ -8,6 +8,7 @@ interface ApiEnvelope<T> {
 
 export interface CustomerDto {
   id: number;
+  userId?: number;
   fullName?: string;
   name?: string;
   email: string;
@@ -22,6 +23,16 @@ export interface CustomerDto {
   status?: string;
   createdAt?: string;
   joinDate?: string;
+  addresses?: CustomerAddressDto[];
+}
+
+export interface CustomerAddressDto {
+  id: number;
+  addressLine?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  isDefault?: boolean;
 }
 
 export interface AdminCustomersQuery {

@@ -50,3 +50,13 @@ export interface Category {
 export interface CategoryInput {
   name: string;
 }
+
+export interface Brand {
+  id: string;
+  name: string;
+  productCount?: number;
+}
+
+export interface BrandInput {
+  name: string;
+}

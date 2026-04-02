@@ -28,6 +28,9 @@ import ProductsPage from "./products/page";
 import CategoriesPage from "./categories/page";
 import EditCategoryPage from "./categories/[id]/page";
 import CreateCategoryPage from "./categories/create/page";
+import BrandsPage from "./brands/page";
+import EditBrandPage from "./brands/[id]/page";
+import CreateBrandPage from "./brands/create/page";
 import OrdersPage from "./orders/page";
 import CustomersPage from "./customers/page";
 import EditProductPage from "./products/[id]/page";
@@ -44,30 +47,36 @@ const StatCard = ({
   icon: Icon,
   label,
   value,
+  meta,
   change,
   isPositive,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  change: string;
-  isPositive: boolean;
+  meta?: string;
+  change?: string;
+  isPositive?: boolean;
 }) => (
   <Card className="p-6">
     <div className="flex items-start justify-between">
       <div>
         <p className="text-sm text-muted-foreground mb-2">{label}</p>
         <h3 className="text-2xl font-bold text-foreground">{value}</h3>
-        <div
-          className={`flex items-center gap-1 mt-2 text-sm ${isPositive ? "text-green-600" : "text-red-600"}`}
-        >
-          {isPositive ? (
-            <ArrowUpRight className="w-4 h-4" />
-          ) : (
-            <ArrowDownRight className="w-4 h-4" />
-          )}
-          {change}
-        </div>
+        {change ? (
+          <div
+            className={`flex items-center gap-1 mt-2 text-sm ${isPositive ? "text-green-600" : "text-red-600"}`}
+          >
+            {isPositive ? (
+              <ArrowUpRight className="w-4 h-4" />
+            ) : (
+              <ArrowDownRight className="w-4 h-4" />
+            )}
+            {change}
+          </div>
+        ) : meta ? (
+          <p className="mt-2 text-sm text-muted-foreground">{meta}</p>
+        ) : null}
       </div>
       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
         {Icon}
@@ -82,6 +91,7 @@ export default function AdminDashboard() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
+  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
 
   const handleEditProduct = (productId: string) => {
     setEditingProductId(productId);
@@ -101,6 +111,15 @@ export default function AdminDashboard() {
     setActiveSection("create-category");
   };
 
+  const handleEditBrand = (brandId: string) => {
+    setEditingBrandId(brandId);
+    setActiveSection("edit-brand");
+  };
+
+  const handleCreateBrand = () => {
+    setActiveSection("create-brand");
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case "products":
@@ -115,6 +134,13 @@ export default function AdminDashboard() {
           <CategoriesPage
             onEditCategory={handleEditCategory}
             onCreateCategory={handleCreateCategory}
+          />
+        );
+      case "brands":
+        return (
+          <BrandsPage
+            onEditBrand={handleEditBrand}
+            onCreateBrand={handleCreateBrand}
           />
         );
       case "edit-category":
@@ -136,6 +162,23 @@ export default function AdminDashboard() {
         return (
           <CreateCategoryPage onBack={() => setActiveSection("categories")} />
         );
+      case "edit-brand":
+        if (!editingBrandId) {
+          return (
+            <BrandsPage
+              onEditBrand={handleEditBrand}
+              onCreateBrand={handleCreateBrand}
+            />
+          );
+        }
+        return (
+          <EditBrandPage
+            brandId={editingBrandId}
+            onBack={() => setActiveSection("brands")}
+          />
+        );
+      case "create-brand":
+        return <CreateBrandPage onBack={() => setActiveSection("brands")} />;
       case "edit-product":
         if (!editingProductId) {
           return (
@@ -245,29 +288,25 @@ function DashboardContent() {
           icon={<ShoppingCart className="w-6 h-6" />}
           label="Tổng doanh thu"
           value={formatRevenue(summary?.totalRevenue ?? 0)}
-          change={formatPercentChange(summary?.revenueGrowthPercent ?? 0)}
-          isPositive={(summary?.revenueGrowthPercent ?? 0) >= 0}
+          meta={`${summary?.completedOrders ?? 0} đơn hoàn thành`}
         />
         <StatCard
           icon={<BarChart3 className="w-6 h-6" />}
-          label="Đơn hàng hôm nay"
-          value={String(summary?.todayOrders ?? 0)}
-          change={formatPercentChange(summary?.ordersGrowthPercent ?? 0)}
-          isPositive={(summary?.ordersGrowthPercent ?? 0) >= 0}
+          label="Tổng đơn hàng"
+          value={String(summary?.totalOrders ?? 0)}
+          meta={`Chờ xử lý ${summary?.pendingOrders ?? 0} · Hủy ${summary?.cancelledOrders ?? 0}`}
         />
         <StatCard
           icon={<Users className="w-6 h-6" />}
-          label="Khách hàng mới"
-          value={String(summary?.newCustomers ?? 0)}
-          change={formatPercentChange(summary?.customersGrowthPercent ?? 0)}
-          isPositive={(summary?.customersGrowthPercent ?? 0) >= 0}
+          label="Khách hàng"
+          value={String(summary?.totalCustomers ?? 0)}
+          meta="Tổng số khách hàng trong hệ thống"
         />
         <StatCard
           icon={<TrendingUp className="w-6 h-6" />}
-          label="Tỷ lệ chuyển đổi"
-          value={formatPercent(summary?.conversionRate ?? 0)}
-          change={formatPercentChange(summary?.conversionGrowthPercent ?? 0)}
-          isPositive={(summary?.conversionGrowthPercent ?? 0) >= 0}
+          label="Sản phẩm"
+          value={String(summary?.totalProducts ?? 0)}
+          meta={`${overview?.topProducts.length ?? 0} sản phẩm đang có doanh số`}
         />
       </div>
 

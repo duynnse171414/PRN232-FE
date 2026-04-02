@@ -1,16 +1,14 @@
 import { apiClient } from "./apiClient";
-import { orderService } from "./orderService";
 import { productService } from "./productService";
 
 export interface DashboardSummary {
   totalRevenue: number;
-  todayOrders: number;
-  newCustomers: number;
-  conversionRate: number;
-  revenueGrowthPercent: number;
-  ordersGrowthPercent: number;
-  customersGrowthPercent: number;
-  conversionGrowthPercent: number;
+  totalOrders: number;
+  pendingOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalCustomers: number;
+  totalProducts: number;
 }
 
 export interface DashboardRevenuePoint {
@@ -60,6 +58,31 @@ function pickNumber(
   return defaultValue;
 }
 
+function pickString(
+  payload: Record<string, unknown>,
+  keys: string[],
+  defaultValue = "",
+) {
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  return defaultValue;
+}
+
+function unwrapObject(payload: unknown): Record<string, unknown> {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const obj = payload as Record<string, unknown>;
+    if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
+      return obj.data as Record<string, unknown>;
+    }
+    return obj;
+  }
+
+  return {};
+}
+
 function normalizeDashboardSummary(
   payload: Record<string, unknown>,
 ): DashboardSummary {
@@ -70,51 +93,166 @@ function normalizeDashboardSummary(
       "revenue",
       "Revenue",
     ]),
-    todayOrders: pickNumber(payload, [
-      "todayOrders",
-      "TodayOrders",
+    totalOrders: pickNumber(payload, [
       "totalOrders",
       "TotalOrders",
       "orders",
       "Orders",
     ]),
-    newCustomers: pickNumber(payload, [
-      "newCustomers",
-      "NewCustomers",
+    pendingOrders: pickNumber(payload, ["pendingOrders", "PendingOrders"]),
+    completedOrders: pickNumber(payload, [
+      "completedOrders",
+      "CompletedOrders",
+    ]),
+    cancelledOrders: pickNumber(payload, [
+      "cancelledOrders",
+      "CancelledOrders",
+    ]),
+    totalCustomers: pickNumber(payload, [
+      "totalCustomers",
+      "TotalCustomers",
       "customers",
       "Customers",
     ]),
-    conversionRate: pickNumber(payload, [
-      "conversionRate",
-      "ConversionRate",
-      "conversion",
-      "Conversion",
-    ]),
-    revenueGrowthPercent: pickNumber(payload, [
-      "revenueGrowthPercent",
-      "RevenueGrowthPercent",
-      "revenueChangePercent",
-      "RevenueChangePercent",
-    ]),
-    ordersGrowthPercent: pickNumber(payload, [
-      "ordersGrowthPercent",
-      "OrdersGrowthPercent",
-      "ordersChangePercent",
-      "OrdersChangePercent",
-    ]),
-    customersGrowthPercent: pickNumber(payload, [
-      "customersGrowthPercent",
-      "CustomersGrowthPercent",
-      "customersChangePercent",
-      "CustomersChangePercent",
-    ]),
-    conversionGrowthPercent: pickNumber(payload, [
-      "conversionGrowthPercent",
-      "ConversionGrowthPercent",
-      "conversionChangePercent",
-      "ConversionChangePercent",
+    totalProducts: pickNumber(payload, [
+      "totalProducts",
+      "TotalProducts",
+      "products",
+      "Products",
     ]),
   };
+}
+
+function normalizeTopProducts(
+  payload: Record<string, unknown>,
+): DashboardTopProduct[] {
+  const topSellingProducts = Array.isArray(payload.topSellingProducts)
+    ? payload.topSellingProducts
+    : Array.isArray(payload.TopSellingProducts)
+      ? payload.TopSellingProducts
+      : [];
+
+  return topSellingProducts
+    .filter(
+      (item): item is Record<string, unknown> =>
+        !!item && typeof item === "object",
+    )
+    .map((item) => ({
+      id: pickNumber(item, ["productId", "ProductId", "id", "Id"]),
+      name: String(
+        item.productName ??
+          item.ProductName ??
+          item.name ??
+          item.Name ??
+          "Sản phẩm",
+      ),
+      sales: pickNumber(item, [
+        "totalQuantitySold",
+        "TotalQuantitySold",
+        "sales",
+        "Sales",
+        "quantity",
+        "Quantity",
+      ]),
+      revenue: pickNumber(item, [
+        "totalRevenue",
+        "TotalRevenue",
+        "revenue",
+        "Revenue",
+      ]),
+    }))
+    .filter((item) => item.id > 0 || item.name);
+}
+
+function normalizeRevenueData(
+  payload: Record<string, unknown>,
+): DashboardRevenuePoint[] {
+  const revenueData = Array.isArray(payload.revenueData)
+    ? payload.revenueData
+    : Array.isArray(payload.RevenueData)
+      ? payload.RevenueData
+      : [];
+
+  return revenueData
+    .filter(
+      (item): item is Record<string, unknown> =>
+        !!item && typeof item === "object",
+    )
+    .map((item) => ({
+      month: pickString(item, ["month", "Month", "label", "Label"]),
+      revenue: pickNumber(item, [
+        "revenue",
+        "Revenue",
+        "totalRevenue",
+        "TotalRevenue",
+      ]),
+      orders: pickNumber(item, [
+        "orders",
+        "Orders",
+        "totalOrders",
+        "TotalOrders",
+      ]),
+    }))
+    .filter((item) => item.month.length > 0);
+}
+
+function normalizeCategoryData(
+  payload: Record<string, unknown>,
+): DashboardCategoryPoint[] {
+  const categoryData = Array.isArray(payload.categoryData)
+    ? payload.categoryData
+    : Array.isArray(payload.CategoryData)
+      ? payload.CategoryData
+      : [];
+
+  return categoryData
+    .filter(
+      (item): item is Record<string, unknown> =>
+        !!item && typeof item === "object",
+    )
+    .map((item) => ({
+      name: pickString(item, ["name", "Name", "categoryName", "CategoryName"]),
+      value: pickNumber(item, [
+        "value",
+        "Value",
+        "count",
+        "Count",
+        "percentage",
+        "Percentage",
+        "totalProducts",
+        "TotalProducts",
+      ]),
+    }))
+    .filter((item) => item.name.length > 0);
+}
+
+function normalizeRecentOrders(
+  payload: Record<string, unknown>,
+): DashboardRecentOrder[] {
+  const recentOrders = Array.isArray(payload.recentOrders)
+    ? payload.recentOrders
+    : Array.isArray(payload.RecentOrders)
+      ? payload.RecentOrders
+      : [];
+
+  return recentOrders
+    .filter(
+      (item): item is Record<string, unknown> =>
+        !!item && typeof item === "object",
+    )
+    .map((item) => ({
+      id: pickNumber(item, ["id", "Id", "orderId", "OrderId"]),
+      customer: pickString(item, [
+        "customer",
+        "Customer",
+        "customerName",
+        "CustomerName",
+      ]),
+      total: pickNumber(item, ["total", "Total", "totalAmount", "TotalAmount"]),
+      status: pickString(item, ["status", "Status"], "Pending"),
+      date: pickString(item, ["date", "Date", "createdAt", "CreatedAt"]),
+    }))
+    .filter((item) => item.id > 0 || item.customer.length > 0);
 }
 
 function getMonthLabel(date: Date) {
@@ -240,22 +378,44 @@ export const dashboardService = {
     const response = await apiClient.get<Record<string, unknown>>(
       "/api/Dashboard/summary",
     );
-    return normalizeDashboardSummary(response ?? {});
+    const payload = unwrapObject(response);
+    const summaryPayload = payload.summary
+      ? unwrapObject(payload.summary)
+      : payload;
+
+    return normalizeDashboardSummary(summaryPayload);
   },
 
   async getOverview(): Promise<DashboardOverview> {
-    const [summary, ordersResult, productsResult] = await Promise.all([
-      this.getSummary(),
-      orderService.getAdminOrders({ page: 1, pageSize: 100 }),
-      productService.getAdminProducts({ page: 1, limit: 100 }),
-    ]);
+    const summaryResponse = await apiClient.get<Record<string, unknown>>(
+      "/api/Dashboard/summary",
+    );
+    const payload = unwrapObject(summaryResponse);
+    const summaryPayload = payload.summary
+      ? unwrapObject(payload.summary)
+      : payload;
+    const summary = normalizeDashboardSummary(summaryPayload);
+    const topProducts = normalizeTopProducts(payload).length
+      ? normalizeTopProducts(payload)
+      : normalizeTopProducts(summaryPayload);
+    const revenueData = normalizeRevenueData(payload);
+    let categoryData = normalizeCategoryData(payload);
+    const recentOrders = normalizeRecentOrders(payload);
+
+    if (categoryData.length === 0) {
+      const productsResult = await productService
+        .getAdminProducts({ page: 1, limit: 100 })
+        .catch(() => null);
+
+      categoryData = buildCategoryData(productsResult?.products ?? []);
+    }
 
     return {
       summary,
-      revenueData: buildRevenueData(ordersResult.orders),
-      categoryData: buildCategoryData(productsResult.products),
-      topProducts: buildTopProducts(ordersResult.orders),
-      recentOrders: buildRecentOrders(ordersResult.orders),
+      revenueData,
+      categoryData,
+      topProducts,
+      recentOrders,
     };
   },
 };

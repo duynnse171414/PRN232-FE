@@ -78,11 +78,20 @@ export default function OrdersPage() {
   }, []);
 
   const filteredOrders = orders.filter((order) => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const customerName = (order.customerName ?? "").toLowerCase();
+    const selectedStatusLabel = statusLabels[selectedStatus] ?? selectedStatus;
+    const normalizedStatus = getStatusLabel(order.status);
+
     const matchesSearch =
-      String(order.id).includes(searchTerm) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase());
+      String(order.id).includes(searchTerm.trim()) ||
+      customerName.includes(normalizedSearch);
+
     const matchesStatus =
-      selectedStatus === "Tất cả" || order.status === selectedStatus;
+      selectedStatus === "Tất cả" ||
+      order.status === selectedStatus ||
+      normalizedStatus === selectedStatusLabel;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -91,7 +100,7 @@ export default function OrdersPage() {
     0,
   );
   const completedCount = filteredOrders.filter(
-    (o) => o.status === "Delivered",
+    (o) => getStatusLabel(o.status) === "Hoàn thành",
   ).length;
 
   return (

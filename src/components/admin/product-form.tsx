@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Product, CreateProductInput } from "../../lib/types/product";
-import { categoryService } from "../../services/categoryService";
-import { promotionService } from "../../services/promotionService";
+import { productService } from "../../services/productService";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card } from "../ui/card";
@@ -19,71 +18,57 @@ export function ProductForm({
   onSubmit,
   isLoading = false,
 }: ProductFormProps) {
-  const [formData, setFormData] = useState<CreateProductInput>(
+  const [formData, setFormData] = useState<
+    Pick<
+      CreateProductInput,
+      | "name"
+      | "sku"
+      | "description"
+      | "warranty"
+      | "price"
+      | "stock"
+      | "categoryId"
+      | "brandId"
+      | "imageUrl"
+    >
+  >(
     product
       ? {
           name: product.name ?? "",
           sku: product.sku ?? "",
-          slug: product.slug ?? "",
-          category: product.category ?? "",
           categoryId: product.categoryId,
           brandId: product.brandId,
           description: product.description ?? "",
           warranty: product.warranty ?? "",
           price: product.price ?? 0,
-          discountPrice: product.discountPrice,
           stock: product.stock ?? 0,
           imageUrl: product.imageUrl ?? "",
-          images: product.images ?? [],
-          status: product.status ?? "draft",
-          specifications: product.specifications ?? {},
-          promotionIds: product.promotionIds ?? [],
         }
       : {
           name: "",
           sku: "",
-          slug: "",
-          category: "",
           categoryId: undefined,
           brandId: undefined,
           description: "",
           warranty: "",
           price: 0,
-          discountPrice: undefined,
           stock: 0,
           imageUrl: "",
-          images: [],
-          status: "draft",
-          specifications: {},
-          promotionIds: [],
         },
   );
 
   const [categories, setCategories] = useState<{ id: number; name: string }[]>(
     [],
   );
+  const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-
-  const [promotions, setPromotions] = useState<
-    { id: number | string; name: string; discount_percent?: number }[]
-  >([]);
-  const [loadingPromotions, setLoadingPromotions] = useState(true);
-
-  const statuses = ["draft", "active", "inactive"];
-
-  const [specKey, setSpecKey] = useState("");
-  const [specValue, setSpecValue] = useState("");
+  const [loadingBrands, setLoadingBrands] = useState(true);
 
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const data = await categoryService.getCategories();
-        setCategories(
-          data.map((cat) => ({
-            id: Number(cat.id),
-            name: cat.name,
-          })),
-        );
+        const data = await productService.getCategories();
+        setCategories(data);
       } catch (error) {
         console.error("Failed to load categories:", error);
       } finally {
@@ -95,75 +80,19 @@ export function ProductForm({
   }, []);
 
   useEffect(() => {
-    const loadPromotions = async () => {
+    const loadBrands = async () => {
       try {
-        const data = await promotionService.getPromotions();
-        setPromotions(data);
+        const data = await productService.getBrands();
+        setBrands(data);
       } catch (error) {
-        console.error("Failed to load promotions:", error);
+        console.error("Failed to load brands:", error);
       } finally {
-        setLoadingPromotions(false);
+        setLoadingBrands(false);
       }
     };
 
-    loadPromotions();
+    loadBrands();
   }, []);
-
-  useEffect(() => {
-    if (categories.length === 0) return;
-
-    setFormData((prev) => {
-      if (prev.categoryId) {
-        return prev;
-      }
-
-      if (prev.category) {
-        const selected = categories.find((cat) => cat.name === prev.category);
-        if (selected) {
-          return {
-            ...prev,
-            categoryId: selected.id,
-          };
-        }
-      }
-
-      return prev;
-    });
-  }, [categories]);
-
-  useEffect(() => {
-    const selectedPromotionId = formData.promotionIds?.[0];
-    if (!selectedPromotionId) {
-      setFormData((prev) => ({
-        ...prev,
-        discountPrice: undefined,
-      }));
-      return;
-    }
-
-    const selectedPromotion = promotions.find(
-      (promotion) => String(promotion.id) === selectedPromotionId,
-    );
-    const discountPercent = Number(selectedPromotion?.discount_percent ?? 0);
-
-    if (!selectedPromotion || !discountPercent || !formData.price) {
-      setFormData((prev) => ({
-        ...prev,
-        discountPrice: undefined,
-      }));
-      return;
-    }
-
-    const calculatedDiscountPrice = Math.max(
-      0,
-      Number((formData.price * (1 - discountPercent / 100)).toFixed(2)),
-    );
-
-    setFormData((prev) => ({
-      ...prev,
-      discountPrice: calculatedDiscountPrice,
-    }));
-  }, [formData.price, formData.promotionIds, promotions]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -174,55 +103,29 @@ export function ProductForm({
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "price" || name === "discountPrice" || name === "stock"
-          ? parseFloat(value) || 0
-          : value,
+        name === "price" || name === "stock" ? parseFloat(value) || 0 : value,
     }));
-  };
-
-  const handleAddSpec = () => {
-    if (specKey && specValue) {
-      setFormData((prev) => ({
-        ...prev,
-        specifications: {
-          ...prev.specifications,
-          [specKey]: specValue,
-        },
-      }));
-      setSpecKey("");
-      setSpecValue("");
-    }
-  };
-
-  const handleRemoveSpec = (key: string) => {
-    setFormData((prev) => {
-      const newSpecs = { ...prev.specifications };
-      delete newSpecs[key];
-      return { ...prev, specifications: newSpecs };
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
-  };
-
-  const handleCategoryChange = (categoryIdValue: string) => {
-    const selected = categories.find(
-      (cat) => String(cat.id) === categoryIdValue,
-    );
-    setFormData((prev) => ({
-      ...prev,
-      category: selected?.name ?? "",
-      categoryId: selected?.id,
-    }));
-  };
-
-  const handlePromotionChange = (promotionIdValue: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      promotionIds: promotionIdValue ? [promotionIdValue] : [],
-    }));
+    await onSubmit({
+      name: formData.name,
+      sku: formData.sku,
+      slug: formData.sku,
+      category: "",
+      categoryId: formData.categoryId,
+      brandId: formData.brandId,
+      description: formData.description,
+      warranty: formData.warranty,
+      price: formData.price,
+      stock: formData.stock,
+      imageUrl: formData.imageUrl,
+      images: formData.imageUrl ? [formData.imageUrl] : [],
+      status: "active",
+      specifications: {},
+      promotionIds: [],
+    });
   };
 
   return (
@@ -243,20 +146,6 @@ export function ProductForm({
               value={formData.name}
               onChange={handleInputChange}
               placeholder="VD: ASUS ROG Gaming Laptop"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Slug *
-            </label>
-            <Input
-              type="text"
-              name="slug"
-              value={formData.slug}
-              onChange={handleInputChange}
-              placeholder="asus-rog-gaming-laptop"
               required
             />
           </div>
@@ -297,9 +186,16 @@ export function ProductForm({
                 Danh mục *
               </label>
               <select
-                name="category"
+                name="categoryId"
                 value={formData.categoryId ? String(formData.categoryId) : ""}
-                onChange={(e) => handleCategoryChange(e.target.value)}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    categoryId: e.target.value
+                      ? Number(e.target.value)
+                      : undefined,
+                  }))
+                }
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                 disabled={loadingCategories}
                 required
@@ -321,23 +217,35 @@ export function ProductForm({
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Trạng thái *
+                Thương hiệu *
               </label>
               <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
+                name="brandId"
+                value={formData.brandId ? String(formData.brandId) : ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    brandId: e.target.value
+                      ? Number(e.target.value)
+                      : undefined,
+                  }))
+                }
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                disabled={loadingBrands}
+                required
               >
-                {statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status === "active"
-                      ? "Kích hoạt"
-                      : status === "inactive"
-                        ? "Tắt"
-                        : "Nháp"}
-                  </option>
-                ))}
+                {loadingBrands ? (
+                  <option>Đang tải...</option>
+                ) : (
+                  <>
+                    <option value="">Chọn thương hiệu</option>
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={String(brand.id)}>
+                        {brand.name}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -364,7 +272,7 @@ export function ProductForm({
         <h3 className="text-lg font-semibold mb-4 text-foreground">
           Giá và Kho
         </h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Giá *
@@ -376,19 +284,6 @@ export function ProductForm({
               onChange={handleInputChange}
               placeholder="0"
               required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Giá khuyến mãi
-            </label>
-            <Input
-              type="number"
-              name="discountPrice"
-              value={formData.discountPrice ?? ""}
-              readOnly
-              placeholder="0"
             />
           </div>
 
@@ -406,26 +301,6 @@ export function ProductForm({
             />
           </div>
         </div>
-
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Mã khuyến mãi
-          </label>
-          <select
-            name="promotionId"
-            value={formData.promotionIds?.[0] ?? ""}
-            onChange={(e) => handlePromotionChange(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-            disabled={loadingPromotions}
-          >
-            <option value="">Không áp dụng khuyến mãi</option>
-            {promotions.map((promo) => (
-              <option key={promo.id} value={String(promo.id)}>
-                {promo.name}
-              </option>
-            ))}
-          </select>
-        </div>
       </Card>
 
       {/* Images */}
@@ -434,90 +309,15 @@ export function ProductForm({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Hình ảnh chính *
+              URL hình ảnh
             </label>
             <Input
               type="text"
               name="imageUrl"
               value={formData.imageUrl}
               onChange={handleInputChange}
-              placeholder="/gaming-laptop.jpg"
-              required
+              placeholder="https://..."
             />
-          </div>
-
-          <div>
-            <p className="text-sm text-muted-foreground">
-              Nhập URL hình ảnh phân cách bằng dấu phẩy:
-            </p>
-            <textarea
-              name="images"
-              value={formData.images.join(", ")}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  images: e.target.value
-                    .split(",")
-                    .map((img) => img.trim())
-                    .filter(Boolean),
-                }))
-              }
-              placeholder="/image1.jpg, /image2.jpg, /image3.jpg"
-              rows={3}
-              className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground mt-2"
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Specifications */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4 text-foreground">
-          Thông số kỹ thuật
-        </h3>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="text"
-              value={specKey}
-              onChange={(e) => setSpecKey(e.target.value)}
-              placeholder="VD: Processor"
-            />
-            <Input
-              type="text"
-              value={specValue}
-              onChange={(e) => setSpecValue(e.target.value)}
-              placeholder="VD: Intel Core i9-13900HX"
-            />
-          </div>
-          <Button
-            type="button"
-            onClick={handleAddSpec}
-            variant="outline"
-            className="w-full"
-          >
-            Thêm thông số
-          </Button>
-
-          <div className="space-y-2">
-            {Object.entries(formData.specifications).map(([key, value]) => (
-              <div
-                key={key}
-                className="flex items-center justify-between p-2 bg-card rounded border border-border"
-              >
-                <div>
-                  <p className="font-medium text-foreground">{key}</p>
-                  <p className="text-sm text-muted-foreground">{value}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveSpec(key)}
-                  className="text-destructive hover:text-destructive/80 font-medium"
-                >
-                  Xóa
-                </button>
-              </div>
-            ))}
           </div>
         </div>
       </Card>

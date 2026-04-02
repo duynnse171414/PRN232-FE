@@ -9,6 +9,7 @@ import {
   LogOut,
   ChevronDown,
   Tag,
+  Award,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 
@@ -16,6 +17,7 @@ const menuItems = [
   { section: "dashboard", icon: BarChart3, label: "Dashboard" },
   { section: "products", icon: Package, label: "Sản phẩm" },
   { section: "categories", icon: Tag, label: "Danh mục" },
+  { section: "brands", icon: Award, label: "Thương hiệu" },
   { section: "orders", icon: ShoppingCart, label: "Đơn hàng" },
   { section: "customers", icon: Users, label: "Khách hàng" },
 ];
