@@ -41,7 +41,7 @@ export function CheckoutPage() {
     expiryDate: '',
     cvv: '',
     deliveryMethod: 'standard',
-    paymentMethod: 'cod', // 'cod' | 'card' | 'bank'
+    paymentMethod: 'cod', // 'cod' | 'card' | 'transfer' | 'vnpay'
   });
 
   useEffect(() => {
@@ -80,7 +80,11 @@ export function CheckoutPage() {
       const addressId = Number(formData.addressId || '0');
       let order: OrderDto;
       if (isAuthenticated) {
-        order = await orderService.checkoutFromCart({ addressId: addressId > 0 ? addressId : undefined, notes: combinedNotes });
+        order = await orderService.checkoutFromCart({
+          addressId: addressId > 0 ? addressId : undefined,
+          notes: combinedNotes,
+          paymentMethod: formData.paymentMethod,
+        });
       } else {
         order = await orderService.placeOrder({
           guestName: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -90,6 +94,14 @@ export function CheckoutPage() {
           items: cart.map(item => ({ productId: Number(item.product.id), quantity: item.quantity })),
         });
       }
+
+      if (formData.paymentMethod === 'vnpay') {
+        const paymentUrl = order.paymentUrl || await orderService.createVnpayPaymentUrl();
+        await clearCart();
+        window.location.href = paymentUrl;
+        return;
+      }
+
       setPlacedOrderId(order.id);
       setOrderPlaced(true);
       await clearCart();
@@ -125,7 +137,13 @@ export function CheckoutPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                   <span style={{ color: '#64748b' }}>Payment</span>
                   <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                    {formData.paymentMethod === 'cod' ? 'Cash on Delivery' : formData.paymentMethod === 'card' ? 'Credit Card' : 'Bank Transfer'}
+                    {formData.paymentMethod === 'cod'
+                      ? 'Cash on Delivery'
+                      : formData.paymentMethod === 'card'
+                        ? 'Credit / Debit Card'
+                        : formData.paymentMethod === 'transfer'
+                          ? 'Bank Transfer'
+                          : 'VNPAY'}
                   </span>
                 </div>
               </div>
@@ -141,7 +159,8 @@ export function CheckoutPage() {
   const paymentMethods = [
     { id: 'cod', label: 'Cash on Delivery', desc: 'Pay when you receive', icon: Banknote },
     { id: 'card', label: 'Credit / Debit Card', desc: 'Visa, Mastercard, JCB', icon: CreditCard },
-    { id: 'bank', label: 'Bank Transfer', desc: 'Scan QR to transfer', icon: QrCode },
+    { id: 'transfer', label: 'Bank Transfer', desc: 'Scan QR to transfer', icon: QrCode },
+    { id: 'vnpay', label: 'VNPAY', desc: 'Redirect to VNPAY gateway', icon: ArrowRight },
   ];
 
   const deliveryOptions = [
@@ -346,7 +365,7 @@ export function CheckoutPage() {
                     )}
 
                     {/* Bank transfer QR */}
-                    {formData.paymentMethod === 'bank' && (
+                    {formData.paymentMethod === 'transfer' && (
                       <div className="co-payment-expand" style={{ animationName: 'expandIn' }}>
                         <div style={{ height: 1, background: '#f1f5f9', margin: '4px 0 16px' }} />
                         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -415,6 +434,19 @@ export function CheckoutPage() {
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d' }}>Pay when you receive</div>
                             <div style={{ fontSize: 12, color: '#16a34a' }}>Have cash ready when the delivery arrives</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* VNPAY note */}
+                    {formData.paymentMethod === 'vnpay' && (
+                      <div className="co-payment-expand" style={{ animationName: 'expandIn' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px' }}>
+                          <ArrowRight size={18} color="#1d4ed8" />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>Thanh toán qua VNPAY</div>
+                            <div style={{ fontSize: 12, color: '#2563eb' }}>Sau khi đặt đơn, bạn sẽ được chuyển sang cổng VNPAY để thanh toán</div>
                           </div>
                         </div>
                       </div>

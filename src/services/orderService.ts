@@ -24,11 +24,13 @@ export interface OrderDto {
   trackingNumber: string | null;
   createdAt: string;
   items: OrderItem[];
+  paymentUrl?: string;
 }
 
 export interface CheckoutFromCartRequest {
   addressId?: number;
   notes?: string;
+  paymentMethod?: string;
 }
 
 export interface PlaceOrderRequest {
@@ -44,6 +46,10 @@ export interface PlaceOrderRequest {
   }>;
 }
 
+export interface CreateVnpayPaymentUrlResponse {
+  paymentUrl: string;
+}
+
 export const orderService = {
   async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
     const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', payload);
@@ -53,6 +59,18 @@ export const orderService = {
   async placeOrder(payload: PlaceOrderRequest): Promise<OrderDto> {
     const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', payload);
     return res.data;
+  },
+
+  async createVnpayPaymentUrl(): Promise<string> {
+    const res = await apiClient.post<ApiEnvelope<CreateVnpayPaymentUrlResponse> | CreateVnpayPaymentUrlResponse>(
+      '/api/vnpay/create-payment-url'
+    );
+
+    if ((res as ApiEnvelope<CreateVnpayPaymentUrlResponse>)?.data?.paymentUrl) {
+      return (res as ApiEnvelope<CreateVnpayPaymentUrlResponse>).data.paymentUrl;
+    }
+
+    return (res as CreateVnpayPaymentUrlResponse).paymentUrl;
   },
 
   async getOrderById(orderId: number): Promise<OrderDto> {
