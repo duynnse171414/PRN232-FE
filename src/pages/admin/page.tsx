@@ -33,6 +33,9 @@ import EditBrandPage from "./brands/[id]/page";
 import CreateBrandPage from "./brands/create/page";
 import OrdersPage from "./orders/page";
 import CustomersPage from "./customers/page";
+import VouchersPage from "./vouchers/page";
+import EditVoucherPage from "./vouchers/[id]/page";
+import CreateVoucherPage from "./vouchers/create/page";
 import EditProductPage from "./products/[id]/page";
 import CreateProductPage from "./products/create/page";
 import {
@@ -92,6 +95,7 @@ export default function AdminDashboard() {
     null,
   );
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
+  const [editingVoucherId, setEditingVoucherId] = useState<string | null>(null);
 
   const handleEditProduct = (productId: string) => {
     setEditingProductId(productId);
@@ -118,6 +122,15 @@ export default function AdminDashboard() {
 
   const handleCreateBrand = () => {
     setActiveSection("create-brand");
+  };
+
+  const handleEditVoucher = (voucherId: string) => {
+    setEditingVoucherId(voucherId);
+    setActiveSection("edit-voucher");
+  };
+
+  const handleCreateVoucher = () => {
+    setActiveSection("create-voucher");
   };
 
   const renderSection = () => {
@@ -202,6 +215,30 @@ export default function AdminDashboard() {
         return <OrdersPage />;
       case "customers":
         return <CustomersPage />;
+      case "vouchers":
+        return (
+          <VouchersPage
+            onEditVoucher={handleEditVoucher}
+            onCreateVoucher={handleCreateVoucher}
+          />
+        );
+      case "edit-voucher":
+        if (!editingVoucherId) {
+          return (
+            <VouchersPage
+              onEditVoucher={handleEditVoucher}
+              onCreateVoucher={handleCreateVoucher}
+            />
+          );
+        }
+        return (
+          <EditVoucherPage
+            voucherId={editingVoucherId}
+            onBack={() => setActiveSection("vouchers")}
+          />
+        );
+      case "create-voucher":
+        return <CreateVoucherPage onBack={() => setActiveSection("vouchers")} />;
       case "dashboard":
       default:
         return <DashboardContent />;
