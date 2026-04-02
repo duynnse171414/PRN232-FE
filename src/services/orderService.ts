@@ -29,8 +29,10 @@ export interface OrderDto {
 
 export interface CheckoutFromCartRequest {
   addressId?: number;
+  voucherId?: number | null;
+  voucherCode?: string | null;
   notes?: string;
-  paymentMethod?: string;
+  paymentMethod?: 'cod' | 'vnpay';
 }
 
 export interface PlaceOrderRequest {
@@ -38,8 +40,10 @@ export interface PlaceOrderRequest {
   guestEmail?: string;
   guestPhone?: string;
   addressId?: number;
+  voucherId?: number | null;
+  voucherCode?: string | null;
   notes?: string;
-  paymentMethod?: string;
+  paymentMethod?: 'cod' | 'vnpay';
   items: Array<{
     productId: number;
     quantity: number;
@@ -52,12 +56,26 @@ export interface CreateVnpayPaymentUrlResponse {
 
 export const orderService = {
   async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', payload);
+    const normalizedPayload: CheckoutFromCartRequest = {
+      addressId: payload.addressId,
+      voucherId: payload.voucherId ?? null,
+      voucherCode: payload.voucherCode ?? null,
+      notes: payload.notes,
+      paymentMethod: payload.paymentMethod,
+    };
+
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', normalizedPayload);
     return res.data;
   },
 
   async placeOrder(payload: PlaceOrderRequest): Promise<OrderDto> {
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', payload);
+    const normalizedPayload: PlaceOrderRequest = {
+      ...payload,
+      voucherId: payload.voucherId ?? null,
+      voucherCode: payload.voucherCode ?? null,
+    };
+
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', normalizedPayload);
     return res.data;
   },
 

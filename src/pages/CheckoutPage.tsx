@@ -76,21 +76,31 @@ export function CheckoutPage() {
     }
     setLoading(true);
     try {
+      const normalizedPaymentMethod = formData.paymentMethod === 'vnpay' ? 'vnpay' : 'cod';
+      if (formData.paymentMethod !== normalizedPaymentMethod) {
+        toast.info('Hiện backend chỉ hỗ trợ COD hoặc VNPAY. Đơn sẽ được gửi với phương thức COD.');
+      }
+
       const combinedNotes = [`delivery=${formData.deliveryMethod}`, `payment=${formData.paymentMethod}`, `${formData.address}, ${formData.city}`, formData.notes?.trim() || ''].filter(Boolean).join(' | ');
       const addressId = Number(formData.addressId || '0');
       let order: OrderDto;
       if (isAuthenticated) {
         order = await orderService.checkoutFromCart({
           addressId: addressId > 0 ? addressId : undefined,
+          voucherId: null,
+          voucherCode: null,
           notes: combinedNotes,
-          paymentMethod: formData.paymentMethod,
+          paymentMethod: normalizedPaymentMethod,
         });
       } else {
         order = await orderService.placeOrder({
           guestName: `${formData.firstName} ${formData.lastName}`.trim(),
           guestEmail: formData.email, guestPhone: formData.phone,
-          addressId: addressId > 0 ? addressId : undefined, notes: combinedNotes,
-          paymentMethod: formData.paymentMethod,
+          addressId: addressId > 0 ? addressId : undefined,
+          voucherId: null,
+          voucherCode: null,
+          notes: combinedNotes,
+          paymentMethod: normalizedPaymentMethod,
           items: cart.map(item => ({ productId: Number(item.product.id), quantity: item.quantity })),
         });
       }
