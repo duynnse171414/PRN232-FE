@@ -1,9 +1,13 @@
 export interface Product {
   id: string;
   name: string;
+  sku?: string;
   slug: string;
   category: string;
+  categoryId?: number;
+  brandId?: number;
   description: string;
+  warranty?: string;
   price: number;
   discountPrice?: number;
   stock: number;
@@ -16,9 +20,13 @@ export interface Product {
 
 export interface CreateProductInput {
   name: string;
+  sku: string;
   slug: string;
   category: string;
+  categoryId?: number;
+  brandId?: number;
   description: string;
+  warranty: string;
   price: number;
   discountPrice?: number;
   stock: number;

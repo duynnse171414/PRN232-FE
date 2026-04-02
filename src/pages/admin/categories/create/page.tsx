@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { categoryService } from "@/services/categoryService";
-import { CategoryInput } from "@/types";
+import { Card } from "../../../../components/ui/card";
+import { Button } from "../../../../components/ui/button";
+import { Input } from "../../../../components/ui/input";
+import { Label } from "../../../../components/ui/label";
+import { categoryService } from "../../../../services/categoryService";
+import { CategoryInput } from "../../../../types";
 
 interface CreateCategoryPageProps {
   onBack: () => void;

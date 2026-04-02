@@ -1,19 +1,30 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '../types';
-import { authService } from '../services/authService';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { User } from "../types";
+import { authService } from "../services/authService";
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (name: string, email: string, phone: string, password: string) => Promise<boolean>;
+  signup: (
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+  ) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_USER_KEY = 'auth_user';
-const STORAGE_TOKEN_KEY = 'auth_token';
+const STORAGE_USER_KEY = "auth_user";
+const STORAGE_TOKEN_KEY = "auth_token";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -39,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: String(result.user.id),
       name: result.user.name,
       email: result.user.email,
+      role: result.user.role,
     };
 
     setUser(mappedUser);
@@ -50,7 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const signup = async (name: string, email: string, phone: string, password: string): Promise<boolean> => {
+  const signup = async (
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+  ): Promise<boolean> => {
     const result = await authService.register({ name, email, phone, password });
 
     if (!result?.user) return false;
@@ -59,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: String(result.user.id),
       name: result.user.name,
       email: result.user.email,
+      role: result.user.role,
     };
 
     setUser(mappedUser);
@@ -94,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

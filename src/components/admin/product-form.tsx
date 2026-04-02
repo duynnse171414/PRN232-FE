@@ -22,14 +22,32 @@ export function ProductForm({
   const [formData, setFormData] = useState<CreateProductInput>(
     product
       ? {
-          ...product,
+          name: product.name ?? "",
+          sku: product.sku ?? "",
+          slug: product.slug ?? "",
+          category: product.category ?? "",
+          categoryId: product.categoryId,
+          brandId: product.brandId,
+          description: product.description ?? "",
+          warranty: product.warranty ?? "",
+          price: product.price ?? 0,
+          discountPrice: product.discountPrice,
+          stock: product.stock ?? 0,
+          imageUrl: product.imageUrl ?? "",
+          images: product.images ?? [],
+          status: product.status ?? "draft",
+          specifications: product.specifications ?? {},
           promotionIds: product.promotionIds ?? [],
         }
       : {
           name: "",
+          sku: "",
           slug: "",
-          category: "Laptops",
+          category: "",
+          categoryId: undefined,
+          brandId: undefined,
           description: "",
+          warranty: "",
           price: 0,
           discountPrice: undefined,
           stock: 0,
@@ -47,7 +65,7 @@ export function ProductForm({
   const [loadingCategories, setLoadingCategories] = useState(true);
 
   const [promotions, setPromotions] = useState<
-    { id: number | string; name: string }[]
+    { id: number | string; name: string; discount_percent?: number }[]
   >([]);
   const [loadingPromotions, setLoadingPromotions] = useState(true);
 
@@ -60,7 +78,12 @@ export function ProductForm({
     const loadCategories = async () => {
       try {
         const data = await categoryService.getCategories();
-        setCategories(data);
+        setCategories(
+          data.map((cat) => ({
+            id: Number(cat.id),
+            name: cat.name,
+          })),
+        );
       } catch (error) {
         console.error("Failed to load categories:", error);
       } finally {
@@ -85,6 +108,62 @@ export function ProductForm({
 
     loadPromotions();
   }, []);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+
+    setFormData((prev) => {
+      if (prev.categoryId) {
+        return prev;
+      }
+
+      if (prev.category) {
+        const selected = categories.find((cat) => cat.name === prev.category);
+        if (selected) {
+          return {
+            ...prev,
+            categoryId: selected.id,
+          };
+        }
+      }
+
+      return prev;
+    });
+  }, [categories]);
+
+  useEffect(() => {
+    const selectedPromotionId = formData.promotionIds?.[0];
+    if (!selectedPromotionId) {
+      setFormData((prev) => ({
+        ...prev,
+        discountPrice: undefined,
+      }));
+      return;
+    }
+
+    const selectedPromotion = promotions.find(
+      (promotion) => String(promotion.id) === selectedPromotionId,
+    );
+    const discountPercent = Number(selectedPromotion?.discount_percent ?? 0);
+
+    if (!selectedPromotion || !discountPercent || !formData.price) {
+      setFormData((prev) => ({
+        ...prev,
+        discountPrice: undefined,
+      }));
+      return;
+    }
+
+    const calculatedDiscountPrice = Math.max(
+      0,
+      Number((formData.price * (1 - discountPercent / 100)).toFixed(2)),
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      discountPrice: calculatedDiscountPrice,
+    }));
+  }, [formData.price, formData.promotionIds, promotions]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -123,19 +202,27 @@ export function ProductForm({
     });
   };
 
-  const handleTogglePromotion = (promotionId: string) => {
-    setFormData((prev) => {
-      const existing = prev.promotionIds || [];
-      const next = existing.includes(promotionId)
-        ? existing.filter((id) => id !== promotionId)
-        : [...existing, promotionId];
-      return { ...prev, promotionIds: next };
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSubmit(formData);
+  };
+
+  const handleCategoryChange = (categoryIdValue: string) => {
+    const selected = categories.find(
+      (cat) => String(cat.id) === categoryIdValue,
+    );
+    setFormData((prev) => ({
+      ...prev,
+      category: selected?.name ?? "",
+      categoryId: selected?.id,
+    }));
+  };
+
+  const handlePromotionChange = (promotionIdValue: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      promotionIds: promotionIdValue ? [promotionIdValue] : [],
+    }));
   };
 
   return (
@@ -177,23 +264,57 @@ export function ProductForm({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
+                SKU *
+              </label>
+              <Input
+                type="text"
+                name="sku"
+                value={formData.sku}
+                onChange={handleInputChange}
+                placeholder="VD: LAP-ROG-001"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Bảo hành *
+              </label>
+              <Input
+                type="text"
+                name="warranty"
+                value={formData.warranty}
+                onChange={handleInputChange}
+                placeholder="VD: 24 tháng"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Danh mục *
               </label>
               <select
                 name="category"
-                value={formData.category}
-                onChange={handleInputChange}
+                value={formData.categoryId ? String(formData.categoryId) : ""}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                 disabled={loadingCategories}
+                required
               >
                 {loadingCategories ? (
                   <option>Đang tải...</option>
                 ) : (
-                  categories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))
+                  <>
+                    <option value="">Chọn danh mục</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={String(cat.id)}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </>
                 )}
               </select>
             </div>
@@ -218,38 +339,6 @@ export function ProductForm({
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Khuyến mãi
-            </label>
-            <div className="grid grid-cols-2 gap-3 p-3 border border-border rounded-md bg-background">
-              {loadingPromotions ? (
-                <div className="text-sm text-muted-foreground">Đang tải...</div>
-              ) : promotions.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  Không có khuyến mãi
-                </div>
-              ) : (
-                promotions.map((promo) => (
-                  <label
-                    key={promo.id}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.promotionIds?.includes(
-                        String(promo.id),
-                      )}
-                      onChange={() => handleTogglePromotion(String(promo.id))}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-foreground">{promo.name}</span>
-                  </label>
-                ))
-              )}
             </div>
           </div>
 
@@ -297,8 +386,8 @@ export function ProductForm({
             <Input
               type="number"
               name="discountPrice"
-              value={formData.discountPrice || ""}
-              onChange={handleInputChange}
+              value={formData.discountPrice ?? ""}
+              readOnly
               placeholder="0"
             />
           </div>
@@ -316,6 +405,26 @@ export function ProductForm({
               required
             />
           </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Mã khuyến mãi
+          </label>
+          <select
+            name="promotionId"
+            value={formData.promotionIds?.[0] ?? ""}
+            onChange={(e) => handlePromotionChange(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+            disabled={loadingPromotions}
+          >
+            <option value="">Không áp dụng khuyến mãi</option>
+            {promotions.map((promo) => (
+              <option key={promo.id} value={String(promo.id)}>
+                {promo.name}
+              </option>
+            ))}
+          </select>
         </div>
       </Card>
 

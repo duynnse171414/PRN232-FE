@@ -1,108 +1,91 @@
-import { useState } from "react";
-import {
-  Search,
-  Mail,
-  Phone,
-  MapPin,
-  Edit,
-  Trash2,
-  MessageSquare,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Mail, Phone, MapPin, Trash2, Loader2 } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
+import {
+  customerService,
+  CustomerDto,
+} from "../../../services/customerService";
 
-const customers = [
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@email.com",
-    phone: "+84 912 345 678",
-    location: "Hà Nội",
-    orders: 5,
-    spent: "1,245,000",
-    status: "Hoạt động",
-    joinDate: "2023-01-15",
-    avatar: "👨",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "tranthib@email.com",
-    phone: "+84 912 456 789",
-    location: "TPHCM",
-    orders: 3,
-    spent: "875,500",
-    status: "Hoạt động",
-    joinDate: "2023-03-20",
-    avatar: "👩",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "levanc@email.com",
-    phone: "+84 912 567 890",
-    location: "Đà Nẵng",
-    orders: 8,
-    spent: "2,156,000",
-    status: "Hoạt động",
-    joinDate: "2023-02-10",
-    avatar: "👨",
-  },
-  {
-    id: 4,
-    name: "Phạm Thị D",
-    email: "phamthid@email.com",
-    phone: "+84 912 678 901",
-    location: "Hải Phòng",
-    orders: 2,
-    spent: "450,000",
-    status: "Không hoạt động",
-    joinDate: "2023-05-05",
-    avatar: "👩",
-  },
-  {
-    id: 5,
-    name: "Hoàng Văn E",
-    email: "hoangvane@email.com",
-    phone: "+84 912 789 012",
-    location: "Cần Thơ",
-    orders: 6,
-    spent: "1,678,000",
-    status: "Hoạt động",
-    joinDate: "2023-04-18",
-    avatar: "👨",
-  },
-  {
-    id: 6,
-    name: "Đỗ Thị F",
-    email: "dothif@email.com",
-    phone: "+84 912 890 123",
-    location: "Hà Nội",
-    orders: 4,
-    spent: "892,500",
-    status: "Hoạt động",
-    joinDate: "2023-06-22",
-    avatar: "👩",
-  },
-];
+function getCustomerName(c: CustomerDto): string {
+  return c.fullName ?? c.name ?? c.email;
+}
+
+function getCustomerPhone(c: CustomerDto): string {
+  return c.phoneNumber ?? c.phone ?? "—";
+}
+
+function getCustomerLocation(c: CustomerDto): string {
+  return c.city ?? c.province ?? c.address ?? "—";
+}
+
+function isActive(c: CustomerDto): boolean {
+  if (c.isActive !== undefined) return c.isActive;
+  if (c.status)
+    return (
+      c.status.toLowerCase() !== "inactive" &&
+      c.status.toLowerCase() !== "banned"
+    );
+  return true;
+}
+
+function getJoinDate(c: CustomerDto): string {
+  const raw = c.createdAt ?? c.joinDate;
+  if (!raw) return "—";
+  return new Date(raw).toLocaleDateString("vi-VN");
+}
 
 export default function CustomersPage() {
+  const [customers, setCustomers] = useState<CustomerDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Tất cả");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   const statuses = ["Tất cả", "Hoạt động", "Không hoạt động"];
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const result = await customerService.getAdminCustomers();
+        setCustomers(result.customers);
+      } catch (err: any) {
+        setError(err?.message ?? "Không thể tải khách hàng");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   const filteredCustomers = customers.filter((customer) => {
+    const name = getCustomerName(customer).toLowerCase();
     const matchesSearch =
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm);
+      getCustomerPhone(customer).includes(searchTerm);
+    const active = isActive(customer);
     const matchesStatus =
-      selectedStatus === "Tất cả" || customer.status === selectedStatus;
+      selectedStatus === "Tất cả" ||
+      (selectedStatus === "Hoạt động" && active) ||
+      (selectedStatus === "Không hoạt động" && !active);
     return matchesSearch && matchesStatus;
   });
+
+  const activeCount = customers.filter(isActive).length;
+  const totalSpent = customers.reduce((sum, c) => sum + (c.totalSpent ?? 0), 0);
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Xóa khách hàng này?")) return;
+    try {
+      await customerService.deleteAdminCustomer(id);
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
+    } catch (err: any) {
+      alert(err?.message ?? "Xóa thất bại");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -116,9 +99,6 @@ export default function CustomersPage() {
             Xem và quản lý danh sách khách hàng của bạn
           </p>
         </div>
-        <Button size="lg" className="bg-primary hover:bg-primary/90">
-          Thêm khách hàng
-        </Button>
       </div>
 
       {/* Filters */}
@@ -153,143 +133,148 @@ export default function CustomersPage() {
         </div>
       </Card>
 
-      {/* Customers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCustomers.map((customer) => (
-          <Card
-            key={customer.id}
-            className="p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl">
-                  {customer.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">
-                    {customer.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Tham gia {customer.joinDate}
-                  </p>
-                </div>
-              </div>
-              <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  customer.status === "Hoạt động"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {customer.status}
-              </span>
-            </div>
-
-            {/* Contact Info */}
-            <div className="space-y-2 mb-4 pb-4 border-b border-border">
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground truncate">
-                  {customer.email}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">{customer.phone}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">
-                  {customer.location}
-                </span>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-border">
-              <div className="bg-input rounded-lg p-2 text-center">
-                <p className="text-xs text-muted-foreground">Đơn hàng</p>
-                <p className="text-lg font-bold text-primary">
-                  {customer.orders}
-                </p>
-              </div>
-              <div className="bg-input rounded-lg p-2 text-center">
-                <p className="text-xs text-muted-foreground">Đã chi</p>
-                <p className="text-lg font-bold text-primary">
-                  {customer.spent}
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 text-sm">
-                <MessageSquare className="w-4 h-4 mr-1" />
-                Tin nhắn
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Edit className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-red-600">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {filteredCustomers.length === 0 && (
-        <Card className="text-center py-12">
-          <p className="text-muted-foreground">Không tìm thấy khách hàng</p>
+      {/* Loading / Error */}
+      {loading && (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )}
+      {error && (
+        <Card className="text-center py-8">
+          <p className="text-red-500">{error}</p>
         </Card>
       )}
 
-      {/* Summary Stats */}
-      <Card className="p-6 bg-gradient-to-r from-primary/5 to-accent/5">
-        <h3 className="font-semibold text-foreground mb-4">
-          Thống kê khách hàng
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">
-              Tổng khách hàng
-            </p>
-            <p className="text-2xl font-bold text-foreground">
-              {customers.length}
-            </p>
+      {/* Customers Grid */}
+      {!loading && !error && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCustomers.map((customer) => {
+              const active = isActive(customer);
+              return (
+                <Card
+                  key={customer.id}
+                  className="p-6 hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-lg">
+                        {getCustomerName(customer).charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground truncate">
+                          {getCustomerName(customer)}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Tham gia {getJoinDate(customer)}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {active ? "Hoạt động" : "Không hoạt động"}
+                    </span>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2 mb-4 pb-4 border-b border-border">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground truncate">
+                        {customer.email}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        {getCustomerPhone(customer)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        {getCustomerLocation(customer)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-border">
+                    <div className="bg-input rounded-lg p-2 text-center">
+                      <p className="text-xs text-muted-foreground">Đơn hàng</p>
+                      <p className="text-lg font-bold text-primary">
+                        {customer.totalOrders ?? "—"}
+                      </p>
+                    </div>
+                    <div className="bg-input rounded-lg p-2 text-center">
+                      <p className="text-xs text-muted-foreground">Đã chi</p>
+                      <p className="text-lg font-bold text-primary">
+                        {customer.totalSpent !== undefined
+                          ? customer.totalSpent.toLocaleString("vi-VN") + "đ"
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => handleDelete(customer.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Hoạt động</p>
-            <p className="text-2xl font-bold text-green-600">
-              {customers.filter((c) => c.status === "Hoạt động").length}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Tổng doanh thu</p>
-            <p className="text-2xl font-bold text-primary">
-              {customers
-                .reduce(
-                  (sum, c) => sum + parseInt(c.spent.replace(/,/g, "")),
-                  0,
-                )
-                .toLocaleString()}
-              đ
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Trung bình chi</p>
-            <p className="text-2xl font-bold text-accent">
-              {Math.round(
-                customers.reduce(
-                  (sum, c) => sum + parseInt(c.spent.replace(/,/g, "")),
-                  0,
-                ) / customers.length,
-              ).toLocaleString()}
-              đ
-            </p>
-          </div>
-        </div>
-      </Card>
+
+          {filteredCustomers.length === 0 && (
+            <Card className="text-center py-12">
+              <p className="text-muted-foreground">Không tìm thấy khách hàng</p>
+            </Card>
+          )}
+
+          {/* Summary Stats */}
+          <Card className="p-6 bg-gradient-to-r from-primary/5 to-accent/5">
+            <h3 className="font-semibold text-foreground mb-4">
+              Thống kê khách hàng
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Tổng khách hàng
+                </p>
+                <p className="text-2xl font-bold text-foreground">
+                  {customers.length}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Hoạt động</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {activeCount}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Tổng chi tiêu
+                </p>
+                <p className="text-2xl font-bold text-primary">
+                  {totalSpent.toLocaleString("vi-VN")}đ
+                </p>
+              </div>
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

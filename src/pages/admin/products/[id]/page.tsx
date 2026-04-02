@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ProductForm } from "../../../../components/admin/product-form";
 import { Product, CreateProductInput } from "../../../../lib/types/product";
 import { Card } from "../../../../components/ui/card";
+import { productService } from "../../../../services/productService";
 
 interface EditProductPageProps {
   productId: string;
@@ -20,16 +21,10 @@ export default function EditProductPage({
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`/api/products/${productId}`);
-        const data = await res.json();
-
-        if (data.success) {
-          setProduct(data.data);
-        } else {
-          setError("Không tìm thấy sản phẩm");
-        }
+        const data = await productService.getAdminProductById(productId);
+        setProduct(data);
       } catch (err) {
-        setError("Lỗi kết nối");
+        setError(err instanceof Error ? err.message : "Lỗi kết nối");
         console.error(err);
       } finally {
         setIsLoadingProduct(false);
@@ -44,21 +39,10 @@ export default function EditProductPage({
     setError(null);
 
     try {
-      const res = await fetch(`/api/products/${productId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const result = await res.json();
-
-      if (result.success) {
-        onBack();
-      } else {
-        setError(result.error || "Có lỗi xảy ra");
-      }
+      await productService.updateAdminProduct(productId, data);
+      onBack();
     } catch (err) {
-      setError("Lỗi kết nối");
+      setError(err instanceof Error ? err.message : "Lỗi kết nối");
       console.error(err);
     } finally {
       setIsLoading(false);
