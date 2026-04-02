@@ -4,6 +4,7 @@ import {
   Package,
   ShoppingCart,
   Users,
+  TicketPercent,
   Menu,
   X,
   LogOut,
@@ -20,6 +21,7 @@ const menuItems = [
   { section: "brands", icon: Award, label: "Thương hiệu" },
   { section: "orders", icon: ShoppingCart, label: "Đơn hàng" },
   { section: "customers", icon: Users, label: "Khách hàng" },
+  { section: "vouchers", icon: TicketPercent, label: "Voucher" },
 ];
 
 type AdminLayoutProps = {
