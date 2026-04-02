@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { apiClient } from './apiClient';
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -24,28 +24,15 @@ export interface OrderDto {
   trackingNumber: string | null;
   createdAt: string;
   items: OrderItem[];
-}
-
-export interface AdminOrdersQuery {
-  search?: string;
-  status?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface AdminOrdersResult {
-  orders: OrderDto[];
-  total: number;
-}
-
-export interface UpdateOrderStatusRequest {
-  status: string;
+  paymentUrl?: string;
 }
 
 export interface CheckoutFromCartRequest {
   addressId?: number;
+  voucherId?: number | null;
+  voucherCode?: string | null;
   notes?: string;
-  paymentMethod?: string;
+  paymentMethod?: 'cod' | 'vnpay';
 }
 
 export interface PlaceOrderRequest {
@@ -53,67 +40,59 @@ export interface PlaceOrderRequest {
   guestEmail?: string;
   guestPhone?: string;
   addressId?: number;
+  voucherId?: number | null;
+  voucherCode?: string | null;
   notes?: string;
-  paymentMethod?: string;
+  paymentMethod?: 'cod' | 'vnpay';
   items: Array<{
     productId: number;
     quantity: number;
   }>;
 }
 
+export interface CreateVnpayPaymentUrlResponse {
+  paymentUrl: string;
+}
+
 export const orderService = {
   async checkoutFromCart(payload: CheckoutFromCartRequest): Promise<OrderDto> {
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>(
-      "/api/Orders/checkout",
-      payload,
-    );
+    const normalizedPayload: CheckoutFromCartRequest = {
+      addressId: payload.addressId,
+      voucherId: payload.voucherId ?? null,
+      voucherCode: payload.voucherCode ?? null,
+      notes: payload.notes,
+      paymentMethod: payload.paymentMethod,
+    };
+
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders/checkout', normalizedPayload);
     return res.data;
   },
 
   async placeOrder(payload: PlaceOrderRequest): Promise<OrderDto> {
-    const res = await apiClient.post<ApiEnvelope<OrderDto>>(
-      "/api/Orders",
-      payload,
-    );
+    const normalizedPayload: PlaceOrderRequest = {
+      ...payload,
+      voucherId: payload.voucherId ?? null,
+      voucherCode: payload.voucherCode ?? null,
+    };
+
+    const res = await apiClient.post<ApiEnvelope<OrderDto>>('/api/Orders', normalizedPayload);
     return res.data;
+  },
+
+  async createVnpayPaymentUrl(): Promise<string> {
+    const res = await apiClient.post<ApiEnvelope<CreateVnpayPaymentUrlResponse> | CreateVnpayPaymentUrlResponse>(
+      '/api/vnpay/create-payment-url'
+    );
+
+    if ((res as ApiEnvelope<CreateVnpayPaymentUrlResponse>)?.data?.paymentUrl) {
+      return (res as ApiEnvelope<CreateVnpayPaymentUrlResponse>).data.paymentUrl;
+    }
+
+    return (res as CreateVnpayPaymentUrlResponse).paymentUrl;
   },
 
   async getOrderById(orderId: number): Promise<OrderDto> {
-    const res = await apiClient.get<ApiEnvelope<OrderDto>>(
-      `/api/Orders/${orderId}`,
-    );
+    const res = await apiClient.get<ApiEnvelope<OrderDto>>(`/api/Orders/${orderId}`);
     return res.data;
-  },
-
-  async getAdminOrders(query?: AdminOrdersQuery): Promise<AdminOrdersResult> {
-    const params = new URLSearchParams();
-    if (query?.search) params.set("search", query.search);
-    if (query?.status) params.set("status", query.status);
-    if (query?.page !== undefined) params.set("page", String(query.page));
-    if (query?.pageSize !== undefined)
-      params.set("pageSize", String(query.pageSize));
-    const qs = params.toString();
-    const res = await apiClient.get<
-      ApiEnvelope<
-        OrderDto[] | { items?: OrderDto[]; data?: OrderDto[]; total?: number }
-      >
-    >(`/api/Orders${qs ? `?${qs}` : ""}`);
-    const payload = res.data as any;
-    let orders: OrderDto[] = [];
-    if (Array.isArray(payload)) {
-      orders = payload;
-    } else if (Array.isArray(payload?.items)) {
-      orders = payload.items;
-    } else if (Array.isArray(payload?.data)) {
-      orders = payload.data;
-    }
-    return {
-      orders,
-      total: payload?.total ?? payload?.totalCount ?? orders.length,
-    };
-  },
-
-  async updateAdminOrderStatus(orderId: number, status: string): Promise<void> {
-    await apiClient.put(`/api/Orders/${orderId}/status`, { status });
   },
 };

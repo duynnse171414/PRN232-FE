@@ -66,11 +66,22 @@ const floatItems = [
   { label:'RGB Build', top:'85%', right:'7%', delay:'2.7s' },
 ];
 
-/* ─── Category icon map ──────────────────────────── */
-const catIcons: Record<string, string> = {
-  CPU:'🔲', GPU:'🎮', RAM:'💾', SSD:'💿', Motherboard:'🔌',
-  PSU:'⚡', Case:'🗄️', Cooling:'❄️', Monitor:'🖥️', Keyboard:'⌨️',
-  Mouse:'🖱️', Headset:'🎧', default:'🔧',
+/* ─── Category image map ──────────────────────────── */
+const catImages: Record<string, string> = {
+  CPU:        'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&q=80',
+  GPU:        'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=300&q=80',
+  RAM:        'https://images.unsplash.com/photo-1562976540-1502c2145186?w=300&q=80',
+  SSD:        'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=300&q=80',
+  Motherboard:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80',
+  PSU:        'https://images.unsplash.com/photo-1555680202-c86f0e12f086?w=300&q=80',
+  Case:       'https://images.unsplash.com/photo-1547082299-de196ea013d6?w=300&q=80',
+  Cooling:    'https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&q=80',
+  Monitor:    'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=300&q=80',
+  Keyboard:   'https://images.unsplash.com/photo-1541140532154-b024d705b90a?w=300&q=80',
+  Mouse:      'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=300&q=80',
+  Headset:    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&q=80',
+  Storage:    'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?w=300&q=80',
+  default:    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80',
 };
 
 export function HomePage() {
@@ -293,16 +304,19 @@ export function HomePage() {
         @media(max-width:500px){ .hp-cat-grid{grid-template-columns:repeat(2,1fr)} }
 
         .hp-cat-card {
-          background:#fff;border-radius:16px;padding:22px 16px;text-align:center;
+          background:#fff;border-radius:16px;overflow:hidden;
           border:1.5px solid #f1f5f9;
-          box-shadow:0 2px 8px rgba(0,0,0,.04);
+          box-shadow:0 2px 8px rgba(0,0,0,.05);
           text-decoration:none;transition:all .3s;
-          display:flex;flex-direction:column;align-items:center;gap:10px;
+          display:flex;flex-direction:column;align-items:center;
         }
-        .hp-cat-card:hover { transform:translateY(-5px);box-shadow:0 16px 35px rgba(59,130,246,.13);border-color:#bfdbfe; }
-        .hp-cat-icon { font-size:32px;filter:drop-shadow(0 2px 6px rgba(59,130,246,.2));transition:transform .3s; }
-        .hp-cat-card:hover .hp-cat-icon { transform:scale(1.15) rotate(5deg); }
-        .hp-cat-name { font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#374151;transition:color .2s; }
+        .hp-cat-card:hover { transform:translateY(-5px);box-shadow:0 16px 35px rgba(59,130,246,.15);border-color:#bfdbfe; }
+        .hp-cat-img-wrap { width:100%;aspect-ratio:4/3;overflow:hidden;position:relative;background:#f1f5f9; }
+        .hp-cat-img { width:100%;height:100%;object-fit:cover;transition:transform .4s ease; }
+        .hp-cat-card:hover .hp-cat-img { transform:scale(1.08); }
+        .hp-cat-img-overlay { position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(15,23,42,.18));transition:opacity .3s; }
+        .hp-cat-card:hover .hp-cat-img-overlay { opacity:0.5; }
+        .hp-cat-name { font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#374151;transition:color .2s;padding:12px 8px;text-align:center; }
         .hp-cat-card:hover .hp-cat-name { color:#3b82f6; }
 
         /* ── Product grid ── */
@@ -454,7 +468,15 @@ export function HomePage() {
             <div className="hp-cat-grid hp-stagger">
               {categories.slice(0, 10).map(cat => (
                 <Link key={cat.id} to={`/products?category=${encodeURIComponent(cat.name)}`} className="hp-cat-card hp-reveal">
-                  <span className="hp-cat-icon">{catIcons[cat.name] || catIcons.default}</span>
+                  <div className="hp-cat-img-wrap">
+                    <img
+                      src={catImages[cat.name] || catImages.default}
+                      alt={cat.name}
+                      className="hp-cat-img"
+                      onError={e => { (e.currentTarget as HTMLImageElement).src = catImages.default; }}
+                    />
+                    <div className="hp-cat-img-overlay" />
+                  </div>
                   <span className="hp-cat-name">{cat.name}</span>
                 </Link>
               ))}
